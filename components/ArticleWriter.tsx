@@ -1,0 +1,1406 @@
+'use client';
+
+import { useState, useEffect, useRef, useCallback } from 'react';
+
+interface ArticleWriterProps {
+  articleData: any;
+  onSaveArticle?: (articleData: any) => void;
+}
+
+interface H2Block {
+  id: string;
+  h2Title: string;
+  h2Level: 'H2' | 'H3' | 'H4'; // 見出しレベル
+  content: string; // H2とその直下のH3/H4を含むブロック全体
+  h3s: Array<{ title: string; level: 'H3' | 'H4' }>; // H3/H4見出しのリスト
+  writtenContent: string; // 執筆された内容
+  editingInstruction: string; // 執筆の指示
+  htmlContent: string; // HTML変換後の内容
+  attachedFiles: File[]; // 添付ファイル
+}
+
+export default function ArticleWriter({ articleData, onSaveArticle }: ArticleWriterProps) {
+  // articleIdを確実に保持するためのstate
+  const [currentArticleId, setCurrentArticleId] = useState<string>(articleData?.articleId || `article-${Date.now()}`);
+  
+  const [h2Blocks, setH2Blocks] = useState<H2Block[]>([]);
+  const [structure, setStructure] = useState(articleData?.structure || '');
+  const [title, setTitle] = useState(articleData?.title || '');
+  const [intro, setIntro] = useState('');
+  const [description, setDescription] = useState('');
+  const [writingLoading, setWritingLoading] = useState<{ [key: string]: boolean }>({});
+  const [selectedText, setSelectedText] = useState<{ blockId: string; text: string; start: number; end: number } | null>(null);
+  const [partEditingInstruction, setPartEditingInstruction] = useState('');
+  const [partEditingLoading, setPartEditingLoading] = useState(false);
+  const [htmlConverting, setHtmlConverting] = useState<{ [key: string]: boolean }>({});
+  const [introHtmlConverting, setIntroHtmlConverting] = useState(false);
+  const [introHtmlContent, setIntroHtmlContent] = useState('');
+  const [internalLinkLoading, setInternalLinkLoading] = useState(false);
+  const [salesLocationLoading, setSalesLocationLoading] = useState(false);
+  const [introSalesSummaryLoading, setIntroSalesSummaryLoading] = useState(false);
+  const [supervisorCommentLoading, setSupervisorCommentLoading] = useState(false);
+  const textareaRefs = useRef<{ [key: string]: HTMLTextAreaElement | null }>({});
+  const fileInputRefs = useRef<{ [key: string]: HTMLInputElement | null }>({});
+
+  // articleDataからデータを読み込む（記事一覧から選択した場合など）
+  useEffect(() => {
+    if (articleData) {
+      const articleId = articleData.articleId || `article-${Date.now()}`;
+      setCurrentArticleId(articleId);
+      
+      // まず、localStorageから保存されたデータを読み込む（自動保存データ）
+      try {
+        const savedDataKey = `seo-article-data-${articleId}`;
+        const savedData = localStorage.getItem(savedDataKey);
+        if (savedData) {
+          const parsed = JSON.parse(savedData);
+          // 保存されたデータを優先的に使用
+          if (parsed.title) setTitle(parsed.title);
+          if (parsed.structure) setStructure(parsed.structure);
+          if (parsed.intro) setIntro(parsed.intro);
+          if (parsed.introHtmlContent) setIntroHtmlContent(parsed.introHtmlContent);
+          if (parsed.description) setDescription(parsed.description);
+          if (parsed.h2Blocks && parsed.h2Blocks.length > 0) {
+            // writtenContentが含まれているブロックの数を確認
+            const blocksWithContent = parsed.h2Blocks.filter((block: any) => block.writtenContent && block.writtenContent.trim().length > 0);
+            setH2Blocks(parsed.h2Blocks);
+            
+            // デバッグログ（開発時のみ）
+            if (process.env.NODE_ENV === 'development') {
+              console.log(`[Load] Loaded h2Blocks (${blocksWithContent.length} blocks with content) from ${savedDataKey}`);
+              console.log(`[Load] Sample writtenContent length:`, parsed.h2Blocks[0]?.writtenContent?.length || 0);
+            }
+          }
+        } else {
+          // localStorageにデータがない場合は、articleDataから読み込む
+          if (articleData.title) setTitle(articleData.title);
+          if (articleData.structure) setStructure(articleData.structure);
+          if (articleData.intro) setIntro(articleData.intro);
+          if (articleData.introHtmlContent) setIntroHtmlContent(articleData.introHtmlContent);
+          if (articleData.description) setDescription(articleData.description);
+          if (articleData.h2Blocks && articleData.h2Blocks.length > 0) {
+            setH2Blocks(articleData.h2Blocks);
+          }
+        }
+      } catch (error) {
+        console.error('Error loading saved data:', error);
+        // エラーが発生した場合は、articleDataから読み込む
+        if (articleData.title) setTitle(articleData.title);
+        if (articleData.structure) setStructure(articleData.structure);
+        if (articleData.intro) setIntro(articleData.intro);
+        if (articleData.introHtmlContent) setIntroHtmlContent(articleData.introHtmlContent);
+        if (articleData.description) setDescription(articleData.description);
+        if (articleData.h2Blocks && articleData.h2Blocks.length > 0) {
+          setH2Blocks(articleData.h2Blocks);
+        }
+      }
+    } else {
+      // articleDataがnullの場合でも、currentArticleIdを使って保存されたデータを読み込む
+      try {
+        const savedDataKey = `seo-article-data-${currentArticleId}`;
+        const savedData = localStorage.getItem(savedDataKey);
+        if (savedData) {
+          const parsed = JSON.parse(savedData);
+          if (parsed.title) setTitle(parsed.title);
+          if (parsed.structure) setStructure(parsed.structure);
+          if (parsed.intro) setIntro(parsed.intro);
+          if (parsed.introHtmlContent) setIntroHtmlContent(parsed.introHtmlContent);
+          if (parsed.description) setDescription(parsed.description);
+          if (parsed.h2Blocks && parsed.h2Blocks.length > 0) {
+            const blocksWithContent = parsed.h2Blocks.filter((block: any) => block.writtenContent && block.writtenContent.trim().length > 0);
+            setH2Blocks(parsed.h2Blocks);
+            if (process.env.NODE_ENV === 'development') {
+              console.log(`[Load] Loaded h2Blocks (${blocksWithContent.length} blocks with content) from ${savedDataKey} (no articleData)`);
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error loading saved data (no articleData):', error);
+      }
+    }
+  }, [articleData, currentArticleId]);
+
+  // タイトルが変更されたときに自動保存（debounce付き）
+  useEffect(() => {
+    if (!title && !articleData?.articleId) return;
+    
+    const timeoutId = setTimeout(() => {
+      try {
+        const articleId = currentArticleId;
+        const dataToSave = {
+          ...articleData,
+          articleId,
+          title,
+          structure,
+          h2Blocks: h2Blocks.map(block => ({
+            ...block,
+            attachedFiles: [], // ファイルは保存しない
+          })),
+          intro,
+          introHtmlContent,
+          description,
+          savedAt: new Date().toISOString(),
+        };
+        // articleIdに基づいて保存
+        localStorage.setItem(`seo-article-data-${articleId}`, JSON.stringify(dataToSave));
+      } catch (error) {
+        console.error('Error auto-saving title:', error);
+      }
+    }, 1000); // 1秒後に保存
+
+    return () => clearTimeout(timeoutId);
+  }, [title, articleData, h2Blocks, intro, introHtmlContent, description, structure, currentArticleId]);
+
+  // H2ブロックが変更されたときに自動保存（debounce付き）
+  useEffect(() => {
+    // currentArticleIdを使用（確実に設定されている）
+    const articleId = currentArticleId;
+    
+    // h2Blocksが空で、titleもない場合は保存しない
+    if (h2Blocks.length === 0 && !title) return;
+    
+    const timeoutId = setTimeout(() => {
+      try {
+        // writtenContentが含まれているブロックの数を確認
+        const blocksWithContent = h2Blocks.filter(block => block.writtenContent && block.writtenContent.trim().length > 0);
+        
+        const dataToSave = {
+          ...articleData,
+          articleId,
+          title,
+          structure,
+          h2Blocks: h2Blocks.map(block => ({
+            ...block,
+            attachedFiles: [], // ファイルは保存しない
+          })),
+          intro,
+          introHtmlContent,
+          description,
+          savedAt: new Date().toISOString(),
+        };
+        
+        // articleIdに基づいて保存
+        const saveKey = `seo-article-data-${articleId}`;
+        localStorage.setItem(saveKey, JSON.stringify(dataToSave));
+        
+        // デバッグログ（開発時のみ）
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`[Auto-save] Saved h2Blocks (${blocksWithContent.length} blocks with content) to ${saveKey}`);
+          if (blocksWithContent.length > 0) {
+            console.log(`[Auto-save] Sample writtenContent length:`, blocksWithContent[0].writtenContent.length);
+          }
+        }
+      } catch (error) {
+        console.error('Error auto-saving h2Blocks:', error);
+      }
+    }, 1000); // 1秒後に保存
+
+    return () => clearTimeout(timeoutId);
+  }, [h2Blocks, articleData, title, intro, introHtmlContent, description, structure, currentArticleId]);
+
+  // 導入文とディスクリプションが変更されたときに自動保存（debounce付き）
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      try {
+        const articleId = currentArticleId;
+        const dataToSave = {
+          ...articleData,
+          articleId,
+          title,
+          structure,
+          h2Blocks: h2Blocks.map(block => ({
+            ...block,
+            attachedFiles: [], // ファイルは保存しない
+          })),
+          intro,
+          introHtmlContent,
+          description,
+          savedAt: new Date().toISOString(),
+        };
+        // articleIdに基づいて保存
+        localStorage.setItem(`seo-article-data-${articleId}`, JSON.stringify(dataToSave));
+      } catch (error) {
+        console.error('Error auto-saving intro/description:', error);
+      }
+    }, 1000); // 1秒後に保存
+
+    return () => clearTimeout(timeoutId);
+  }, [intro, introHtmlContent, description, articleData, title, h2Blocks, structure, currentArticleId]);
+
+  // 記事構成を解析してH2ブロックに分割
+  useEffect(() => {
+    if (structure) {
+      const blocks = parseStructureToH2Blocks(structure);
+      setH2Blocks(blocks);
+    }
+  }, [structure]);
+
+  // 記事構成をH2ブロックに分割する関数
+  const parseStructureToH2Blocks = (structure: string): H2Block[] => {
+    const lines = structure.split('\n');
+    const blocks: H2Block[] = [];
+    let currentBlock: H2Block | null = null;
+    let currentH3s: Array<{ title: string; level: 'H3' | 'H4' }> = [];
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
+      
+      // H2見出しを検出（## または H2: など）
+      if (line.match(/^##\s+(.+)$/) || line.match(/^H2[:：]\s*(.+)$/i) || line.match(/^##\s*H2[:：]\s*(.+)$/i)) {
+        // 前のブロックを保存
+        if (currentBlock) {
+          currentBlock.h3s = currentH3s;
+          blocks.push(currentBlock);
+        }
+        
+        // 新しいブロックを作成
+        const h2Title = line.replace(/^##\s*H2[:：]\s*/i, '').replace(/^##\s*/, '').replace(/^H2[:：]\s*/i, '').trim();
+        currentBlock = {
+          id: `block-${blocks.length}`,
+          h2Title,
+          h2Level: 'H2',
+          content: line + '\n',
+          h3s: [],
+          writtenContent: '',
+          editingInstruction: '',
+          htmlContent: '',
+          attachedFiles: [],
+        };
+        currentH3s = [];
+      } 
+      // H3見出しを検出（### または H3: など）
+      else if (line.match(/^###\s+(.+)$/) || line.match(/^H3[:：]\s*(.+)$/i) || line.match(/^-\s*(.+)$/)) {
+        if (currentBlock) {
+          const h3Title = line.replace(/^###\s*/, '').replace(/^H3[:：]\s*/i, '').replace(/^-\s*/, '').trim();
+          currentH3s.push({ title: h3Title, level: 'H3' });
+          currentBlock.content += line + '\n';
+        }
+      }
+      // H4見出しを検出（#### または H4: など）
+      else if (line.match(/^####\s+(.+)$/) || line.match(/^H4[:：]\s*(.+)$/i)) {
+        if (currentBlock) {
+          const h4Title = line.replace(/^####\s*/, '').replace(/^H4[:：]\s*/i, '').trim();
+          currentH3s.push({ title: h4Title, level: 'H4' });
+          currentBlock.content += line + '\n';
+        }
+      }
+      // その他の行（説明文など）
+      else if (line && currentBlock) {
+        currentBlock.content += line + '\n';
+      }
+    }
+
+    // 最後のブロックを保存
+    if (currentBlock) {
+      currentBlock.h3s = currentH3s;
+      blocks.push(currentBlock);
+    }
+
+    return blocks;
+  };
+
+  // H2ブロックの執筆を実行
+  const handleWriteBlock = useCallback(async (blockId: string) => {
+    const block = h2Blocks.find(b => b.id === blockId);
+    if (!block) return;
+
+    setWritingLoading({ ...writingLoading, [blockId]: true });
+
+    try {
+      // 添付ファイルをBase64に変換
+      const fileDataPromises = block.attachedFiles.map(async (file) => {
+        return new Promise<{ name: string; content: string; type: string }>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => {
+            resolve({
+              name: file.name,
+              content: reader.result as string,
+              type: file.type,
+            });
+          };
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+      });
+
+      const fileData = await Promise.all(fileDataPromises);
+
+      const response = await fetch('/api/generate-writing', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          h2Block: block.h2Title,
+          h3s: block.h3s.map(h => h.title),
+          keyword: articleData.mainKeyword,
+          targetReader: articleData.targetReader,
+          searchIntent: articleData.searchIntent,
+          structure: structure,
+          mediaExample: articleData.mediaExample,
+          editingInstruction: block.editingInstruction,
+          attachedFiles: fileData,
+        }),
+      });
+
+      // レスポンスのContent-Typeを確認
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        const text = await response.text();
+        console.error('Non-JSON response:', text.substring(0, 500));
+        throw new Error(`サーバーエラーが発生しました。レスポンスがJSON形式ではありません。ステータス: ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error || `記事の執筆に失敗しました（ステータス: ${response.status}）`);
+      }
+
+      if (data.error) {
+        throw new Error(data.error);
+      }
+
+      // 執筆された内容を更新
+      setH2Blocks(prevBlocks =>
+        prevBlocks.map(b =>
+          b.id === blockId ? { ...b, writtenContent: data.content || '' } : b
+        )
+      );
+    } catch (error: any) {
+      console.error('Error writing block:', error);
+      alert(error.message || '記事の執筆に失敗しました');
+    } finally {
+      setWritingLoading({ ...writingLoading, [blockId]: false });
+    }
+  }, [h2Blocks, articleData, writingLoading]);
+
+  // テキスト選択を検知
+  const handleTextSelection = (blockId: string) => {
+    const textarea = textareaRefs.current[blockId];
+    if (!textarea) return;
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const selected = textarea.value.substring(start, end);
+
+    if (selected.trim().length > 0) {
+      setSelectedText({ blockId, text: selected, start, end });
+    } else {
+      setSelectedText(null);
+    }
+  };
+
+  // 選択部分の編集を実行
+  const handleEditSelectedPart = useCallback(async () => {
+    if (!selectedText || !partEditingInstruction.trim()) {
+      alert('編集指示を入力してください');
+      return;
+    }
+
+    setPartEditingLoading(true);
+
+    try {
+      const block = h2Blocks.find(b => b.id === selectedText.blockId);
+      if (!block) return;
+
+      // 選択部分の編集APIを呼び出す
+      const response = await fetch('/api/edit-writing-part', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          selectedText: selectedText.text,
+          editingInstruction: partEditingInstruction,
+          fullContent: block.writtenContent,
+          blockData: {
+            h2Title: block.h2Title,
+            h3s: block.h3s.map(h => h.title),
+          },
+          articleData: {
+            mainKeyword: articleData.mainKeyword,
+            targetReader: articleData.targetReader,
+            searchIntent: articleData.searchIntent,
+            structure: structure,
+          },
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || '選択部分の編集に失敗しました');
+      }
+
+      const data = await response.json();
+      if (data.error) {
+        throw new Error(data.error);
+      }
+
+      // 編集された部分で元の選択部分を置き換える
+      if (data.editedText) {
+        const beforeText = block.writtenContent.substring(0, selectedText.start);
+        const afterText = block.writtenContent.substring(selectedText.end);
+        const newContent = beforeText + data.editedText + afterText;
+        
+        setH2Blocks(prevBlocks =>
+          prevBlocks.map(b =>
+            b.id === selectedText.blockId ? { ...b, writtenContent: newContent } : b
+          )
+        );
+        
+        // 選択をクリア
+        setSelectedText(null);
+        setPartEditingInstruction('');
+        
+        // テキストエリアのフォーカスを維持
+        if (textareaRefs.current[selectedText.blockId]) {
+          const newCursorPos = selectedText.start + data.editedText.length;
+          setTimeout(() => {
+            textareaRefs.current[selectedText.blockId]?.setSelectionRange(newCursorPos, newCursorPos);
+            textareaRefs.current[selectedText.blockId]?.focus();
+          }, 0);
+        }
+      }
+    } catch (error: any) {
+      console.error('Error editing selected part:', error);
+      alert(error.message || '選択部分の編集に失敗しました');
+    } finally {
+      setPartEditingLoading(false);
+    }
+  }, [selectedText, partEditingInstruction, h2Blocks, articleData, structure]);
+
+  // HTMLコードだけを抽出する関数
+  const extractHtmlCode = (responseText: string): string => {
+    // HTMLコードブロック（```html ... ```）を抽出
+    const htmlBlockMatch = responseText.match(/```html\s*([\s\S]*?)\s*```/);
+    if (htmlBlockMatch) {
+      return htmlBlockMatch[1].trim();
+    }
+    
+    // HTMLコードブロック（``` ... ```）を抽出（html指定なしの場合）
+    const codeBlockMatch = responseText.match(/```\s*([\s\S]*?)\s*```/);
+    if (codeBlockMatch) {
+      return codeBlockMatch[1].trim();
+    }
+    
+    // HTMLタグが含まれている場合は、その部分を抽出
+    const htmlTagMatch = responseText.match(/(<!--[\s\S]*?-->[\s\S]*?)(?:# WordPress|## ✅|## 📝|---|$)/);
+    if (htmlTagMatch) {
+      return htmlTagMatch[1].trim();
+    }
+    
+    // 上記のパターンに一致しない場合は、元のテキストを返す
+    return responseText.trim();
+  };
+
+  // HTML変換を実行
+  const handleConvertToHtml = useCallback(async (blockId: string) => {
+    const block = h2Blocks.find(b => b.id === blockId);
+    if (!block || !block.writtenContent) {
+      alert('執筆内容がありません');
+      return;
+    }
+
+    setHtmlConverting(prev => ({ ...prev, [blockId]: true }));
+
+    try {
+      const response = await fetch('/api/convert-to-wordpress', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          article: block.writtenContent,
+          content: block.writtenContent,
+          structure: block.content,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'HTML変換に失敗しました');
+      }
+
+      const data = await response.json();
+      if (data.error) {
+        throw new Error(data.error);
+      }
+
+      // HTMLコードだけを抽出
+      const rawHtml = data.html || data.wordpressHtml || '';
+      const extractedHtml = extractHtmlCode(rawHtml);
+
+      // HTML変換後の内容を更新
+      setH2Blocks(prevBlocks =>
+        prevBlocks.map(b =>
+          b.id === blockId ? { ...b, htmlContent: extractedHtml } : b
+        )
+      );
+    } catch (error: any) {
+      console.error('Error converting to HTML:', error);
+      alert(error.message || 'HTML変換に失敗しました');
+    } finally {
+      setHtmlConverting(prev => ({ ...prev, [blockId]: false }));
+    }
+  }, [h2Blocks]);
+
+  // 導入文のHTML変換を実行
+  const handleConvertIntroToHtml = useCallback(async () => {
+    if (!intro || intro.trim().length === 0) {
+      alert('導入文がありません');
+      return;
+    }
+
+    setIntroHtmlConverting(true);
+
+    try {
+      const response = await fetch('/api/convert-to-wordpress', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          article: intro,
+          content: intro,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'HTML変換に失敗しました');
+      }
+
+      const data = await response.json();
+      if (data.error) {
+        throw new Error(data.error);
+      }
+
+      // HTMLコードだけを抽出
+      const rawHtml = data.html || data.wordpressHtml || '';
+      const extractedHtml = extractHtmlCode(rawHtml);
+      setIntroHtmlContent(extractedHtml);
+    } catch (error: any) {
+      console.error('Error converting intro to HTML:', error);
+      alert(error.message || 'HTML変換に失敗しました');
+    } finally {
+      setIntroHtmlConverting(false);
+    }
+  }, [intro]);
+
+  // HTMLをクリップボードにコピーする関数
+  const handleCopyHtml = useCallback(async (htmlContent: string) => {
+    try {
+      await navigator.clipboard.writeText(htmlContent);
+      alert('HTMLをクリップボードにコピーしました');
+    } catch (error) {
+      console.error('Failed to copy HTML:', error);
+      alert('HTMLのコピーに失敗しました');
+    }
+  }, []);
+
+  // 内部リンクを提案してもらう
+  const handleGenerateInternalLinks = useCallback(async () => {
+    setInternalLinkLoading(true);
+    try {
+      // 執筆内容があるH2ブロックのみを送信
+      const blocksWithContent = h2Blocks.filter(block => block.writtenContent && block.writtenContent.trim().length > 0);
+      
+      if (blocksWithContent.length === 0) {
+        alert('執筆内容がありません。まず記事を執筆してください。');
+        setInternalLinkLoading(false);
+        return;
+      }
+
+      const response = await fetch('/api/generate-internal-links', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          h2Blocks: blocksWithContent.map(block => ({
+            id: block.id,
+            h2Title: block.h2Title,
+            h3s: block.h3s,
+            writtenContent: block.writtenContent,
+          })),
+        }),
+      });
+
+      // レスポンスのContent-Typeを確認
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        const text = await response.text();
+        console.error('Non-JSON response:', text.substring(0, 500));
+        throw new Error(`サーバーエラーが発生しました。レスポンスがJSON形式ではありません。ステータス: ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error || `内部リンクの生成に失敗しました（ステータス: ${response.status}）`);
+      }
+
+      if (data.error) {
+        throw new Error(data.error);
+      }
+
+      // H2ブロックごとに内部リンクが挿入された内容を取得
+      if (data.h2BlocksWithLinks) {
+        // 各H2ブロックの執筆内容を更新
+        setH2Blocks(prevBlocks =>
+          prevBlocks.map(block => {
+            const updatedContent = data.h2BlocksWithLinks[block.id];
+            if (updatedContent) {
+              return { ...block, writtenContent: updatedContent };
+            }
+            return block;
+          })
+        );
+        
+        alert('内部リンクが本文に追加されました。');
+      } else if (data.articleWithLinks || data.internalLinks) {
+        // 後方互換性：記事全体が返された場合
+        alert('内部リンクが生成されましたが、H2ブロックごとの処理が必要です。');
+      } else {
+        alert('内部リンクの提案が生成されませんでした');
+      }
+    } catch (error: any) {
+      console.error('Error generating internal links:', error);
+      alert(error.message || '内部リンクの生成に失敗しました');
+    } finally {
+      setInternalLinkLoading(false);
+    }
+  }, [h2Blocks]);
+
+  // セールス箇所を提案してもらう
+  const handleGenerateSalesLocations = useCallback(async () => {
+    setSalesLocationLoading(true);
+    try {
+      // 執筆内容があるH2ブロックのみを送信
+      const blocksWithContent = h2Blocks.filter(block => block.writtenContent && block.writtenContent.trim().length > 0);
+      
+      if (blocksWithContent.length === 0) {
+        alert('執筆内容がありません。まず記事を執筆してください。');
+        setSalesLocationLoading(false);
+        return;
+      }
+
+      const response = await fetch('/api/generate-sales-locations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          h2Blocks: blocksWithContent.map(block => ({
+            id: block.id,
+            h2Title: block.h2Title,
+            h3s: block.h3s,
+            writtenContent: block.writtenContent,
+          })),
+          productUrl: articleData?.productUrl,
+          articleTopic: articleData?.mainKeyword,
+        }),
+      });
+
+      // レスポンスのContent-Typeを確認
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        const text = await response.text();
+        console.error('Non-JSON response:', text.substring(0, 500));
+        throw new Error(`サーバーエラーが発生しました。レスポンスがJSON形式ではありません。ステータス: ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error || `セールス箇所の生成に失敗しました（ステータス: ${response.status}）`);
+      }
+
+      if (data.error) {
+        throw new Error(data.error);
+      }
+
+      // H2ブロックごとに「※ここにセールス文を挿入」が挿入された内容を取得
+      if (data.h2BlocksWithSalesMarkers) {
+        // 各H2ブロックの執筆内容を更新
+        setH2Blocks(prevBlocks =>
+          prevBlocks.map(block => {
+            const updatedContent = data.h2BlocksWithSalesMarkers[block.id];
+            if (updatedContent) {
+              return { ...block, writtenContent: updatedContent };
+            }
+            return block;
+          })
+        );
+        
+        alert('セールス箇所に「※ここにセールス文を挿入」が追加されました。');
+      } else if (data.salesLocations) {
+        // 後方互換性：記事全体が返された場合
+        alert('セールス箇所が生成されましたが、H2ブロックごとの処理が必要です。');
+      } else {
+        alert('セールス箇所の提案が生成されませんでした');
+      }
+    } catch (error: any) {
+      console.error('Error generating sales locations:', error);
+      alert(error.message || 'セールス箇所の生成に失敗しました');
+    } finally {
+      setSalesLocationLoading(false);
+    }
+  }, [h2Blocks, articleData]);
+
+  // 導入文・セールス文・まとめ文・ディスクリプションを執筆する
+  const handleGenerateIntroSalesSummaryDesc = useCallback(async () => {
+    setIntroSalesSummaryLoading(true);
+    try {
+      const fullArticle = h2Blocks
+        .map(block => {
+          let content = `## ${block.h2Title}\n`;
+          block.h3s.forEach(h3 => {
+            content += `### ${h3.title}\n`;
+          });
+          content += block.writtenContent;
+          return content;
+        })
+        .join('\n\n');
+
+      const response = await fetch('/api/generate-intro-sales-summary-desc', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          article: fullArticle,
+          articleData: articleData,
+          keyword: articleData?.mainKeyword,
+          title: title,
+          productUrl: articleData?.productUrl,
+          introReaderWorry: articleData?.introReaderWorry,
+          descriptionKeywords: articleData?.descriptionKeywords,
+          h2Blocks: h2Blocks.map(block => ({
+            id: block.id,
+            h2Title: block.h2Title,
+            writtenContent: block.writtenContent,
+          })),
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || '導入文・セールス文・まとめ文・ディスクリプションの生成に失敗しました');
+      }
+
+      const data = await response.json();
+      if (data.error) {
+        throw new Error(data.error);
+      }
+
+      // 生成された内容を各フィールドに設定
+      // 1. 導入文を「導入文」の執筆欄に設定
+      if (data.intro) {
+        setIntro(data.intro);
+      }
+      
+      // 2. セールス文を「※ここにセールス文を挿入」の箇所に挿入（既存の文章は改変しない）
+      if (data.sales && Array.isArray(data.sales)) {
+        setH2Blocks(prevBlocks =>
+          prevBlocks.map(block => {
+            const salesData = data.sales.find((s: any) => s.blockId === block.id);
+            if (salesData && block.writtenContent.includes('※ここにセールス文を挿入')) {
+              // 「※ここにセールス文を挿入」をセールス文に置き換える（既存の文章は保持）
+              // salesData.contentにはセールス文の内容のみが含まれているはず
+              const updatedContent = block.writtenContent.replace(/※ここにセールス文を挿入/g, salesData.content.trim());
+              return { ...block, writtenContent: updatedContent };
+            }
+            return block;
+          })
+        );
+      }
+      
+      // 3. まとめ文を「H2: まとめ」の執筆欄に設定
+      if (data.summary) {
+        setH2Blocks(prevBlocks =>
+          prevBlocks.map(block => {
+            if (block.h2Title && (block.h2Title.includes('まとめ') || block.h2Title.includes('まとめ'))) {
+              return { ...block, writtenContent: data.summary };
+            }
+            return block;
+          })
+        );
+      }
+      
+      // 4. ディスクリプションを「ディスクリプション」の執筆欄に設定
+      if (data.description) {
+        setDescription(data.description);
+      }
+
+      alert('導入文・セールス文・まとめ文・ディスクリプションが生成されました。');
+    } catch (error: any) {
+      console.error('Error generating intro/sales/summary/desc:', error);
+      alert(error.message || '導入文・セールス文・まとめ文・ディスクリプションの生成に失敗しました');
+    } finally {
+      setIntroSalesSummaryLoading(false);
+    }
+  }, [h2Blocks, articleData, title]);
+
+  // 監修者の吹き出しを執筆する
+  const handleGenerateSupervisorComments = useCallback(async () => {
+    setSupervisorCommentLoading(true);
+    try {
+      const response = await fetch('/api/generate-supervisor-comments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          h2Blocks: h2Blocks.map(block => ({
+            id: block.id,
+            h2Title: block.h2Title,
+            writtenContent: block.writtenContent,
+          })),
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || '監修者の吹き出しの生成に失敗しました');
+      }
+
+      const data = await response.json();
+      if (data.error) {
+        throw new Error(data.error);
+      }
+
+      // H2ブロックごとに更新
+      if (data.h2BlocksWithComments) {
+        setH2Blocks(prevBlocks =>
+          prevBlocks.map(block => {
+            const updatedContent = data.h2BlocksWithComments[block.id];
+            if (updatedContent !== undefined) {
+              return { ...block, writtenContent: updatedContent };
+            }
+            return block;
+          })
+        );
+        alert('監修者の吹き出しが生成されました');
+      } else {
+        alert('監修者の吹き出しが生成されました: ' + (data.comments || 'コメントが生成されませんでした'));
+      }
+    } catch (error: any) {
+      console.error('Error generating supervisor comments:', error);
+      alert(error.message || '監修者の吹き出しの生成に失敗しました');
+    } finally {
+      setSupervisorCommentLoading(false);
+    }
+  }, [h2Blocks]);
+
+  // 保存機能（記事名を付けて保存）
+  const handleSave = () => {
+    const articleName = prompt('記事名を入力してください:', title || articleData.mainKeyword || '無題の記事');
+    if (!articleName) {
+      return; // キャンセルされた場合
+    }
+
+    try {
+      // 記事一覧に追加（同じ記事IDの場合は上書き保存）
+      const articleId = articleData.articleId || `article-${Date.now()}`;
+      
+      const dataToSave = {
+        ...articleData,
+        articleId,
+        title,
+        structure,
+        h2Blocks: h2Blocks.map(block => ({
+          ...block,
+          attachedFiles: [], // ファイルは保存しない（Fileオブジェクトはシリアライズできない）
+        })),
+        intro,
+        introHtmlContent,
+        description,
+        savedAt: new Date().toISOString(),
+      };
+      
+      // writtenContentが含まれているブロックの数を確認
+      const blocksWithContent = h2Blocks.filter(block => block.writtenContent && block.writtenContent.trim().length > 0);
+      console.log(`[Save] Saving article with ${blocksWithContent.length} blocks with content`);
+      const articleListItem = {
+        id: articleId,
+        name: articleName,
+        title: title || '',
+        mainKeyword: articleData.mainKeyword || '',
+        savedAt: new Date().toISOString(),
+        data: { ...dataToSave, articleId }, // articleIdも含める
+      };
+
+      // 記事一覧を読み込む
+      const savedArticles = localStorage.getItem('seo-article-list');
+      let articles: any[] = [];
+      if (savedArticles) {
+        articles = JSON.parse(savedArticles);
+      }
+
+      // 既存の記事を更新するか、新規追加（同じ記事IDの場合は上書き）
+      const existingIndex = articles.findIndex(a => a.id === articleId);
+      if (existingIndex >= 0) {
+        articles[existingIndex] = articleListItem;
+      } else {
+        articles.push(articleListItem);
+      }
+
+      // 記事一覧を保存
+      localStorage.setItem('seo-article-list', JSON.stringify(articles));
+
+      // articleIdに基づいて保存（自動保存用）
+      localStorage.setItem(`seo-article-data-${articleId}`, JSON.stringify(dataToSave));
+
+      // 親コンポーネントに通知
+      if (onSaveArticle) {
+        onSaveArticle({ ...dataToSave, articleId });
+      }
+
+      alert('保存しました！');
+    } catch (error) {
+      console.error('Error saving:', error);
+      alert('保存に失敗しました');
+    }
+  };
+
+  return (
+    <div className="bg-white p-6 rounded-lg shadow">
+      <h2 className="text-2xl font-bold mb-4 text-black">記事執筆</h2>
+
+      {!articleData?.structure && (
+        <div className="mb-4 p-4 bg-yellow-50 rounded">
+          <p className="text-yellow-800">記事構成が設定されていません。</p>
+        </div>
+      )}
+
+      {articleData?.structure && h2Blocks.length === 0 && (
+        <div className="mb-4 p-4 bg-blue-50 rounded">
+          <p className="text-blue-800">記事構成を解析中...</p>
+        </div>
+      )}
+
+      {/* 記事タイトル */}
+      <div className="mb-6">
+        <label className="block mb-2 font-semibold text-black">記事タイトル（編集可能）</label>
+        <input
+          type="text"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          className="w-full p-3 border rounded text-black text-xl font-bold"
+          placeholder="記事タイトルを入力"
+        />
+      </div>
+
+      {/* 導入文とディスクリプション */}
+      <div className="mb-6 space-y-4">
+        <div>
+          <label className="block mb-2 font-semibold text-black">導入文</label>
+          <textarea
+            value={intro}
+            onChange={(e) => setIntro(e.target.value)}
+            className="w-full p-2 border rounded text-black"
+            rows={5}
+            placeholder="導入文を入力"
+          />
+          {/* 導入文のHTML変換ボタン */}
+          {intro && intro.trim().length > 0 && (
+            <div className="mt-2">
+              <button
+                onClick={handleConvertIntroToHtml}
+                disabled={introHtmlConverting}
+                className="bg-purple-500 text-white px-4 py-2 rounded font-semibold hover:bg-purple-600 disabled:bg-gray-400 disabled:text-gray-200"
+              >
+                {introHtmlConverting ? 'HTMLに変換中…' : 'HTMLに変換する'}
+              </button>
+              {introHtmlContent && (
+                <button
+                  onClick={() => handleCopyHtml(introHtmlContent)}
+                  className="ml-2 bg-green-500 text-white px-4 py-2 rounded font-semibold hover:bg-green-600"
+                >
+                  HTMLをコピーする
+                </button>
+              )}
+            </div>
+          )}
+          {/* 導入文のHTML変換後の内容表示 */}
+          {introHtmlContent && (
+            <div className="mt-3">
+              <label className="block mb-2 font-semibold text-black">HTML変換後の内容</label>
+              <textarea
+                value={introHtmlContent}
+                onChange={(e) => setIntroHtmlContent(e.target.value)}
+                className="w-full p-2 border rounded font-mono text-black"
+                rows={10}
+              />
+            </div>
+          )}
+        </div>
+
+        <div>
+          <label className="block mb-2 font-semibold text-black">ディスクリプション</label>
+          <textarea
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            className="w-full p-2 border rounded text-black"
+            rows={3}
+            placeholder="ディスクリプションを入力"
+          />
+        </div>
+      </div>
+
+      {/* H2ブロックごとの執筆画面 */}
+      {h2Blocks.map((block) => (
+        <div key={block.id} className="mb-6 p-4 border rounded-lg">
+          {/* H2見出しの編集欄 */}
+          <div className="mb-3">
+            <label className="block mb-2 font-semibold text-black">H2見出し（編集可能）</label>
+            <input
+              type="text"
+              value={`${block.h2Level}: ${block.h2Title}`}
+              onChange={(e) => {
+                const value = e.target.value;
+                // "H2: "や"H3: "などのプレフィックスを除去
+                const match = value.match(/^(H[234])[:：]\s*(.+)$/i);
+                if (match) {
+                  const level = match[1].toUpperCase() as 'H2' | 'H3' | 'H4';
+                  const title = match[2].trim();
+                  setH2Blocks(prevBlocks =>
+                    prevBlocks.map(b =>
+                      b.id === block.id ? { ...b, h2Title: title, h2Level: level } : b
+                    )
+                  );
+                } else {
+                  // プレフィックスがない場合はH2として扱う
+                  setH2Blocks(prevBlocks =>
+                    prevBlocks.map(b =>
+                      b.id === block.id ? { ...b, h2Title: value.trim(), h2Level: 'H2' } : b
+                    )
+                  );
+                }
+              }}
+              className="w-full p-2 border rounded text-black text-xl font-bold"
+              placeholder="H2: 見出しタイトル"
+            />
+          </div>
+          
+          {/* H3/H4見出しの編集欄 */}
+          {block.h3s.length > 0 && (
+            <div className="mb-3">
+              <label className="block mb-2 font-semibold text-black">H3/H4見出し（編集可能）</label>
+              <div className="space-y-2">
+                {block.h3s.map((h, index) => (
+                  <div key={index} className="flex gap-2">
+                    <input
+                      type="text"
+                      value={`${h.level}: ${h.title}`}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        // "H3: "や"H4: "などのプレフィックスを除去
+                        const match = value.match(/^(H[34])[:：]\s*(.+)$/i);
+                        if (match) {
+                          const level = match[1].toUpperCase() as 'H3' | 'H4';
+                          const title = match[2].trim();
+                          setH2Blocks(prevBlocks =>
+                            prevBlocks.map(b =>
+                              b.id === block.id
+                                ? {
+                                    ...b,
+                                    h3s: b.h3s.map((item, i) =>
+                                      i === index ? { ...item, level, title } : item
+                                    ),
+                                  }
+                                : b
+                            )
+                          );
+                        } else {
+                          // プレフィックスがない場合は現在のレベルを維持
+                          setH2Blocks(prevBlocks =>
+                            prevBlocks.map(b =>
+                              b.id === block.id
+                                ? {
+                                    ...b,
+                                    h3s: b.h3s.map((item, i) =>
+                                      i === index ? { ...item, title: value.trim() } : item
+                                    ),
+                                  }
+                                : b
+                            )
+                          );
+                        }
+                      }}
+                      className="flex-1 p-2 border rounded text-black text-sm"
+                      placeholder={`${h.level}: 見出しタイトル`}
+                    />
+                    <button
+                      onClick={() => {
+                        setH2Blocks(prevBlocks =>
+                          prevBlocks.map(b =>
+                            b.id === block.id
+                              ? {
+                                  ...b,
+                                  h3s: b.h3s.filter((_, i) => i !== index),
+                                }
+                              : b
+                          )
+                        );
+                      }}
+                      className="px-3 py-2 bg-red-500 text-white rounded text-sm hover:bg-red-600"
+                    >
+                      削除
+                    </button>
+                  </div>
+                ))}
+              </div>
+              {/* H3/H4見出しを追加するボタン */}
+              <button
+                onClick={() => {
+                  setH2Blocks(prevBlocks =>
+                    prevBlocks.map(b =>
+                      b.id === block.id
+                        ? {
+                            ...b,
+                            h3s: [...b.h3s, { title: '', level: 'H3' as const }],
+                          }
+                        : b
+                    )
+                  );
+                }}
+                className="mt-2 text-sm text-blue-600 hover:text-blue-800 underline"
+              >
+                + H3見出しを追加
+              </button>
+            </div>
+          )}
+          {/* H3/H4見出しがない場合の追加ボタン */}
+          {block.h3s.length === 0 && (
+            <div className="mb-3">
+              <button
+                onClick={() => {
+                  setH2Blocks(prevBlocks =>
+                    prevBlocks.map(b =>
+                      b.id === block.id
+                        ? {
+                            ...b,
+                            h3s: [{ title: '', level: 'H3' as const }],
+                          }
+                        : b
+                    )
+                  );
+                }}
+                className="text-sm text-blue-600 hover:text-blue-800 underline"
+              >
+                + H3見出しを追加
+              </button>
+            </div>
+          )}
+
+          {/* 添付ファイル欄 */}
+          <div className="mb-3">
+            <label className="block mb-2 text-sm font-semibold text-black">
+              添付ファイル（執筆の参考資料）
+            </label>
+            <input
+              ref={(el) => { fileInputRefs.current[block.id] = el; }}
+              type="file"
+              multiple
+              onChange={(e) => {
+                const files = Array.from(e.target.files || []);
+                setH2Blocks(prevBlocks =>
+                  prevBlocks.map(b =>
+                    b.id === block.id ? { ...b, attachedFiles: files } : b
+                  )
+                );
+              }}
+              className="w-full p-2 border rounded text-black text-sm"
+            />
+            {block.attachedFiles.length > 0 && (
+              <div className="mt-2">
+                <p className="text-sm text-gray-600 mb-1">添付済みファイル:</p>
+                <ul className="list-disc list-inside text-sm text-gray-600">
+                  {block.attachedFiles.map((file, index) => (
+                    <li key={index}>
+                      {file.name} ({(file.size / 1024).toFixed(1)} KB)
+                      <button
+                        onClick={() => {
+                          setH2Blocks(prevBlocks =>
+                            prevBlocks.map(b =>
+                              b.id === block.id
+                                ? { ...b, attachedFiles: b.attachedFiles.filter((_, i) => i !== index) }
+                                : b
+                            )
+                          );
+                          if (fileInputRefs.current[block.id]) {
+                            fileInputRefs.current[block.id]!.value = '';
+                          }
+                        }}
+                        className="ml-2 text-red-600 hover:text-red-800 text-xs"
+                      >
+                        削除
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+
+          {/* 執筆の指示欄 */}
+          <div className="mb-3">
+            <label className="block mb-2 text-sm font-semibold text-black">
+              このH2ブロックへの執筆指示
+            </label>
+            <textarea
+              value={block.editingInstruction}
+              onChange={(e) => {
+                setH2Blocks(prevBlocks =>
+                  prevBlocks.map(b =>
+                    b.id === block.id ? { ...b, editingInstruction: e.target.value } : b
+                  )
+                );
+              }}
+              className="w-full p-2 border rounded text-black text-sm"
+              rows={2}
+              placeholder="このH2ブロックの執筆に関する指示を入力"
+            />
+          </div>
+
+          {/* 執筆ボタン */}
+          <div className="mb-3">
+            <button
+              onClick={() => handleWriteBlock(block.id)}
+              disabled={writingLoading[block.id]}
+              className="bg-blue-500 text-white px-4 py-2 rounded font-semibold hover:bg-blue-600 disabled:bg-gray-400 disabled:text-gray-200"
+            >
+              {writingLoading[block.id] ? '執筆中...' : '執筆する'}
+            </button>
+          </div>
+
+          {/* 執筆欄 */}
+          <div className="mb-3">
+            <label className="block mb-2 font-semibold text-black">執筆内容</label>
+            <textarea
+              ref={(el) => { textareaRefs.current[block.id] = el; }}
+              value={block.writtenContent}
+              onChange={(e) => {
+                setH2Blocks(prevBlocks =>
+                  prevBlocks.map(b =>
+                    b.id === block.id ? { ...b, writtenContent: e.target.value } : b
+                  )
+                );
+              }}
+              onMouseUp={() => handleTextSelection(block.id)}
+              onSelect={() => handleTextSelection(block.id)}
+              className="w-full p-2 border rounded font-mono text-black"
+              rows={10}
+              placeholder="執筆内容がここに表示されます"
+            />
+
+            {/* 選択部分の編集機能 */}
+            {selectedText && selectedText.blockId === block.id && (
+              <div className="mt-2 p-3 bg-yellow-50 border border-yellow-200 rounded">
+                <p className="text-sm font-semibold text-black mb-2">
+                  選択された部分:
+                </p>
+                <div className="mb-3 p-2 bg-white border border-yellow-300 rounded text-sm text-gray-700 font-mono whitespace-pre-wrap max-h-32 overflow-y-auto">
+                  {selectedText.text}
+                </div>
+                <label className="block mb-2 text-sm font-semibold text-black">
+                  選択部分への編集指示
+                </label>
+                <textarea
+                  value={partEditingInstruction}
+                  onChange={(e) => setPartEditingInstruction(e.target.value)}
+                  className="w-full p-2 border rounded text-black text-sm"
+                  rows={2}
+                  placeholder="選択した部分に対する編集指示を入力してください"
+                />
+                <div className="mt-2 flex gap-2">
+                  <button
+                    onClick={handleEditSelectedPart}
+                    disabled={partEditingLoading || !partEditingInstruction.trim()}
+                    className="bg-yellow-500 text-white px-4 py-2 rounded font-semibold hover:bg-yellow-600 disabled:bg-gray-400 disabled:text-gray-200 text-sm"
+                  >
+                    {partEditingLoading ? '編集中...' : '選択部分を編集する'}
+                  </button>
+                  <button
+                    onClick={() => {
+                      setSelectedText(null);
+                      setPartEditingInstruction('');
+                    }}
+                    className="bg-gray-300 text-gray-700 px-4 py-2 rounded font-semibold hover:bg-gray-400 text-sm"
+                  >
+                    選択を解除
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* HTML変換ボタン */}
+          {block.writtenContent && (
+            <div className="mb-3">
+              <button
+                onClick={() => handleConvertToHtml(block.id)}
+                disabled={htmlConverting[block.id]}
+                className="bg-purple-500 text-white px-4 py-2 rounded font-semibold hover:bg-purple-600 disabled:bg-gray-400 disabled:text-gray-200"
+              >
+                {htmlConverting[block.id] ? 'HTMLに変換中…' : 'HTMLに変換する'}
+              </button>
+              {block.htmlContent && (
+                <button
+                  onClick={() => handleCopyHtml(block.htmlContent)}
+                  className="ml-2 bg-green-500 text-white px-4 py-2 rounded font-semibold hover:bg-green-600"
+                >
+                  HTMLをコピーする
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* HTML変換後の内容表示 */}
+          {block.htmlContent && (
+            <div className="mb-3">
+              <label className="block mb-2 font-semibold text-black">HTML変換後の内容</label>
+              <textarea
+                value={block.htmlContent}
+                onChange={(e) => {
+                  setH2Blocks(prevBlocks =>
+                    prevBlocks.map(b =>
+                      b.id === block.id ? { ...b, htmlContent: e.target.value } : b
+                    )
+                  );
+                }}
+                className="w-full p-2 border rounded font-mono text-black"
+                rows={10}
+              />
+            </div>
+          )}
+        </div>
+      ))}
+
+      {/* 各種ボタン */}
+      <div className="mb-4 flex gap-2 flex-wrap">
+        <button
+          onClick={handleGenerateInternalLinks}
+          disabled={internalLinkLoading}
+          className="bg-purple-500 text-white px-4 py-2 rounded font-semibold hover:bg-purple-600 disabled:bg-gray-400 disabled:text-gray-200 transition-colors"
+        >
+          {internalLinkLoading ? '内部リンクを提案中…' : '内部リンクを提案してもらう'}
+        </button>
+        <button
+          onClick={handleGenerateSalesLocations}
+          disabled={salesLocationLoading}
+          className="bg-purple-500 text-white px-4 py-2 rounded font-semibold hover:bg-purple-600 disabled:bg-gray-400 disabled:text-gray-200 transition-colors"
+        >
+          {salesLocationLoading ? 'セールス箇所を提案中…' : 'セールス箇所を提案してもらう'}
+        </button>
+        <button
+          onClick={handleGenerateIntroSalesSummaryDesc}
+          disabled={introSalesSummaryLoading}
+          className="bg-purple-500 text-white px-4 py-2 rounded font-semibold hover:bg-purple-600 disabled:bg-gray-400 disabled:text-gray-200 transition-colors"
+        >
+          {introSalesSummaryLoading ? '導入文・セールス文・まとめ文・ディスクリプションを執筆中…' : '導入文・セールス文・まとめ文・ディスクリプションを執筆する'}
+        </button>
+        <button
+          onClick={handleGenerateSupervisorComments}
+          disabled={supervisorCommentLoading}
+          className="bg-purple-500 text-white px-4 py-2 rounded font-semibold hover:bg-purple-600 disabled:bg-gray-400 disabled:text-gray-200 transition-colors"
+        >
+          {supervisorCommentLoading ? '監修者の吹き出しを執筆中…' : '監修者の吹き出しを執筆する'}
+        </button>
+        <button
+          onClick={handleSave}
+          className="bg-green-500 text-white px-4 py-2 rounded font-semibold hover:bg-green-600 transition-colors"
+        >
+          保存する
+        </button>
+      </div>
+    </div>
+  );
+}
