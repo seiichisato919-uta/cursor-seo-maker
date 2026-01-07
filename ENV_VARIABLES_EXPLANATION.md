@@ -56,11 +56,11 @@ GOOGLE_SHEETS_SERVICE_ACCOUNT_JSON='{"type":"service_account","project_id":"..."
 ## .env.localファイルの完成例
 
 ```env
-# Gemini API（既に設定済み）
-GEMINI_API_KEY=AIzaSyC-SzSVqT8Ygsfx02-TsaNjmFlVJemiyA8
+# Gemini API（設定が必要）
+GEMINI_API_KEY=your_gemini_api_key_here
 
-# Claude API（既に設定済み）
-ANTHROPIC_API_KEY=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
+# Claude API（設定が必要）
+ANTHROPIC_API_KEY=your_claude_api_key_here
 
 # Google Sheets API - スプレッドシートID（変更不要）
 GOOGLE_SHEETS_SPREADSHEET_ID=1B2Nxv4daI7tiKahG-49W_ITDJOGRomZrW_6i8RENehA

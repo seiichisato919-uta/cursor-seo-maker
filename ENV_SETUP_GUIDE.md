@@ -57,8 +57,8 @@
 `.env.local` ファイルに、以下の内容を追加します：
 
 ```env
-GEMINI_API_KEY=AIzaSyC-SzSVqT8Ygsfx02-TsaNjmFlVJemiyA8
-ANTHROPIC_API_KEY=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
+GEMINI_API_KEY=your_gemini_api_key_here
+ANTHROPIC_API_KEY=your_claude_api_key_here
 
 GOOGLE_SHEETS_SPREADSHEET_ID=1B2Nxv4daI7tiKahG-49W_ITDJOGRomZrW_6i8RENehA
 GOOGLE_SHEETS_SERVICE_ACCOUNT_JSON='{"type":"service_account","project_id":"your-project-123456","private_key_id":"abc123...","private_key":"-----BEGIN PRIVATE KEY-----\\n...\\n-----END PRIVATE KEY-----\\n","client_email":"seo-article-creator@your-project-123456.iam.gserviceaccount.com","client_id":"123456789012345678901","auth_uri":"https://accounts.google.com/o/oauth2/auth","token_uri":"https://oauth2.googleapis.com/token","auth_provider_x509_cert_url":"https://www.googleapis.com/oauth2/v1/certs","client_x509_cert_url":"https://www.googleapis.com/robot/v1/metadata/x509/..."}'
@@ -128,8 +128,8 @@ GOOGLE_SHEETS_SERVICE_ACCOUNT_JSON='{"type":"service_account","project_id":"..."
 `.env.local` ファイルの完成例：
 
 ```env
-GEMINI_API_KEY=AIzaSyC-SzSVqT8Ygsfx02-TsaNjmFlVJemiyA8
-ANTHROPIC_API_KEY=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
+GEMINI_API_KEY=your_gemini_api_key_here
+ANTHROPIC_API_KEY=your_claude_api_key_here
 
 GOOGLE_SHEETS_SPREADSHEET_ID=1B2Nxv4daI7tiKahG-49W_ITDJOGRomZrW_6i8RENehA
 GOOGLE_SHEETS_SERVICE_ACCOUNT_JSON='{"type":"service_account","project_id":"my-project-123456","private_key_id":"abc123def456","private_key":"-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQC...\n-----END PRIVATE KEY-----\n","client_email":"seo-article-creator@my-project-123456.iam.gserviceaccount.com","client_id":"123456789012345678901","auth_uri":"https://accounts.google.com/o/oauth2/auth","token_uri":"https://oauth2.googleapis.com/token","auth_provider_x509_cert_url":"https://www.googleapis.com/oauth2/v1/certs","client_x509_cert_url":"https://www.googleapis.com/robot/v1/metadata/x509/seo-article-creator%40my-project-123456.iam.gserviceaccount.com"}'
