@@ -37,6 +37,7 @@ keys/
 !next.config.js
 !postcss.config.js
 !tailwind.config.ts
+!vercel.json
 
 # vercel
 .vercel

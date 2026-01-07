@@ -40,7 +40,7 @@ ANTHROPIC_API_KEY=your_claude_api_key_here
 npm run dev
 ```
 
-ブラウザで [http://localhost:3000](http://localhost:3000) を開いてください。
+ブラウザで [http://localhost:3003](http://localhost:3003) を開いてください。
 
 ## プロジェクト構造
 
@@ -85,6 +85,36 @@ npm run dev
 - [ ] ユーザー指示の記録機能
 - [ ] エラーハンドリングの強化
 - [ ] UI/UXの改善
+
+## Vercelへのデプロイ
+
+### 1. GitHubリポジトリの作成
+
+1. GitHubで新しいリポジトリを作成します
+2. 以下のコマンドでリモートリポジトリを追加してプッシュします：
+
+```bash
+git remote add origin https://github.com/YOUR_USERNAME/YOUR_REPO_NAME.git
+git branch -M main
+git push -u origin main
+```
+
+### 2. Vercelでのデプロイ
+
+1. [Vercel](https://vercel.com)にアクセスしてログインします
+2. 「New Project」をクリックします
+3. GitHubリポジトリを選択します
+4. 環境変数を設定します：
+   - `GEMINI_API_KEY`: Gemini APIキー
+   - `ANTHROPIC_API_KEY`: Claude APIキー
+5. 「Deploy」をクリックします
+
+### 3. 環境変数の設定
+
+Vercelのダッシュボードで、プロジェクト設定 > Environment Variables から以下を設定してください：
+
+- `GEMINI_API_KEY`: あなたのGemini APIキー
+- `ANTHROPIC_API_KEY`: あなたのClaude APIキー
 
 ## ライセンス
 
