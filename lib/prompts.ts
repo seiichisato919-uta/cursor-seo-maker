@@ -25,6 +25,19 @@ export function getStructurePrompt(data: any): string {
   const basePrompt = loadPromptFile('SEO記事構成プロンプト');
   const knowledgeFile = loadPromptFile('記事構成のお手本集');
   
+  // デバッグログ
+  if (!basePrompt) {
+    console.error('⚠️ 警告: SEO記事構成プロンプトファイルが読み込めませんでした。プロジェクトルートに「SEO記事構成プロンプト」ファイルが存在するか確認してください。');
+  } else {
+    console.log(`✅ プロンプトファイル「SEO記事構成プロンプト」を読み込みました（${basePrompt.length}文字）。`);
+  }
+  
+  if (!knowledgeFile) {
+    console.error('⚠️ 警告: 記事構成のお手本集ファイルが読み込めませんでした。プロジェクトルートに「記事構成のお手本集」ファイルが存在するか確認してください。');
+  } else {
+    console.log(`✅ ナレッジファイル「記事構成のお手本集」を読み込みました（${knowledgeFile.length}文字）。`);
+  }
+  
   if (!basePrompt) {
     // フォールバックプロンプト
     return `あなたはSEO記事構成のスペシャリストです。
@@ -127,6 +140,7 @@ export function getWritingPrompt(data: any): string {
   const basePrompt = loadPromptFile('SEO記事執筆プロンプト');
   const knowledgeFile = loadPromptFile('執筆プロンプトに反映したいこと');
   
+  // デバッグログ
   if (!basePrompt) {
     console.error('⚠️ 警告: SEO記事執筆プロンプトファイルが読み込めませんでした。プロジェクトルートに「SEO記事執筆プロンプト」ファイルが存在するか確認してください。');
     return `記事を執筆してください。`;
@@ -135,7 +149,7 @@ export function getWritingPrompt(data: any): string {
   if (!knowledgeFile) {
     console.error('⚠️ 警告: 執筆プロンプトに反映したいことファイルが読み込めませんでした。プロジェクトルートに「執筆プロンプトに反映したいこと」ファイルが存在するか確認してください。');
   } else {
-    console.log('✅ ナレッジファイル「執筆プロンプトに反映したいこと」を読み込みました。');
+    console.log(`✅ ナレッジファイル「執筆プロンプトに反映したいこと」を読み込みました（${knowledgeFile.length}文字）。`);
   }
   
   console.log(`✅ プロンプトファイル「SEO記事執筆プロンプト」を読み込みました（${basePrompt.length}文字）。`);
