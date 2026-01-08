@@ -5,17 +5,34 @@ import { join } from 'path';
  * プロンプトファイルを読み込む
  */
 export function loadPromptFile(filename: string): string {
-  try {
-    // プロンプトファイルはプロジェクトルート（appディレクトリの親）にある
-    // process.cwd()はプロジェクトルートを指す
-    const promptPath = join(process.cwd(), filename);
-    const content = readFileSync(promptPath, 'utf-8');
-    return content;
-  } catch (error) {
-    console.error(`Error reading prompt file ${filename}:`, error);
-    // フォールバック: 空文字を返す
-    return '';
+  const possiblePaths: string[] = [];
+  
+  // 方法1: process.cwd()を使用（通常の開発環境・Vercel環境）
+  possiblePaths.push(join(process.cwd(), filename));
+  
+  // 方法2: __dirnameから相対パスで取得（Node.js環境）
+  if (typeof __dirname !== 'undefined') {
+    possiblePaths.push(join(__dirname, '..', '..', filename));
   }
+  
+  // 各パスを順番に試す
+  for (const promptPath of possiblePaths) {
+    try {
+      const content = readFileSync(promptPath, 'utf-8');
+      console.log(`✅ Successfully loaded ${filename} from: ${promptPath}`);
+      return content;
+    } catch (e) {
+      // 次のパスを試す
+      continue;
+    }
+  }
+  
+  // すべてのパスで失敗した場合
+  console.error(`❌ Error reading prompt file ${filename}`);
+  console.error(`Attempted paths: ${possiblePaths.join(', ')}`);
+  console.error(`Current working directory: ${process.cwd()}`);
+  // フォールバック: 空文字を返す
+  return '';
 }
 
 /**
