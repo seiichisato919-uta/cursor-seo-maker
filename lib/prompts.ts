@@ -7,10 +7,16 @@ import { join } from 'path';
 export function loadPromptFile(filename: string): string {
   const possiblePaths: string[] = [];
   
-  // 方法1: process.cwd()を使用（通常の開発環境・Vercel環境）
+  // 方法1: lib/promptsディレクトリから読み込む（Vercel環境で確実）
+  // lib/prompts.ts から見て、lib/prompts/ は同じディレクトリ内
+  if (typeof __dirname !== 'undefined') {
+    possiblePaths.push(join(__dirname, 'prompts', `${filename}.txt`));
+  }
+  
+  // 方法2: process.cwd()を使用（通常の開発環境）
   possiblePaths.push(join(process.cwd(), filename));
   
-  // 方法2: __dirnameから相対パスで取得（Node.js環境）
+  // 方法3: __dirnameから相対パスで取得（プロジェクトルート）
   if (typeof __dirname !== 'undefined') {
     possiblePaths.push(join(__dirname, '..', '..', filename));
   }
@@ -31,6 +37,9 @@ export function loadPromptFile(filename: string): string {
   console.error(`❌ Error reading prompt file ${filename}`);
   console.error(`Attempted paths: ${possiblePaths.join(', ')}`);
   console.error(`Current working directory: ${process.cwd()}`);
+  if (typeof __dirname !== 'undefined') {
+    console.error(`__dirname: ${__dirname}`);
+  }
   // フォールバック: 空文字を返す
   return '';
 }
