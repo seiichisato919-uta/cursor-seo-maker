@@ -660,12 +660,10 @@ export default function ArticleWriter({ articleData, onSaveArticle }: ArticleWri
         
         if (remainingBlocks.length > 0) {
           console.log(`Processed ${processedBlockIds.length} blocks, ${remainingBlocks.length} remaining. Please click the button again to process remaining blocks.`);
-          alert(`${processedBlockIds.length}個のブロックの内部リンクを追加しました。\n残り${remainingBlocks.length}個のブロックがあります。\n「内部リンクを提案してもらう」ボタンを再度押して、残りのブロックを処理してください。`);
+          alert(`${processedBlockIds.length}個のブロックに内部リンクを追加しました。\n残り${remainingBlocks.length}個のブロックがあります。\n「内部リンクを提案してもらう」ボタンを再度押して、残りのブロックを処理してください。`);
         } else {
           alert('すべてのブロックに内部リンクを追加しました！');
         }
-        
-        alert('内部リンクが本文に追加されました。');
       } else if (data.articleWithLinks || data.internalLinks) {
         // 後方互換性：記事全体が返された場合
         alert('内部リンクが生成されましたが、H2ブロックごとの処理が必要です。');
