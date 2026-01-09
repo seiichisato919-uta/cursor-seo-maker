@@ -56,36 +56,60 @@ export async function getArticleList(): Promise<Array<{ title: string; url: stri
     const spreadsheetId = process.env.GOOGLE_SHEETS_SPREADSHEET_ID || '1B2Nxv4daI7tiKahG-49W_ITDJOGRomZrW_6i8RENehA';
     const sheets = getSheetsClient();
     
+    console.log(`Attempting to fetch from Google Sheets: ${spreadsheetId}`);
+    
     // スプレッドシートのデータを取得
     // A列（タイトル）とB列（URL）を取得
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId,
-      range: 'A2:B', // A1はヘッダーなので、A2から開始
+      range: 'A2:B1000', // A1はヘッダーなので、A2から開始（最大1000行まで）
     });
     
     const rows = response.data.values || [];
+    console.log(`Fetched ${rows.length} rows from Google Sheets`);
     
-    // データを整形
+    // データを整形（空行を除外）
     const articleList = rows
-      .filter((row: any[]) => row.length >= 2 && row[0] && row[1]) // タイトルとURLが両方ある行のみ
+      .filter((row: any[]) => row && row.length >= 2 && row[0] && row[1] && row[0].trim() && row[1].trim()) // タイトルとURLが両方ある行のみ、かつ空でない
       .map((row: any[]) => ({
         title: row[0].trim(),
         url: row[1].trim(),
       }));
     
+    console.log(`Processed ${articleList.length} articles from Google Sheets`);
     return articleList;
   } catch (error: any) {
-    console.error('Error fetching article list from Google Sheets:', error);
+    console.error('❌ Error fetching article list from Google Sheets:', error?.message || error);
+    console.error('Error details:', error);
     
     // エラーが発生した場合は、フォールバックとしてローカルのJSONファイルを使用
     try {
-      const fallbackPath = join(process.cwd(), 'data', 'article-list.json');
-      const fallbackData = JSON.parse(readFileSync(fallbackPath, 'utf-8'));
-      console.log('Using fallback article list from local file');
-      return fallbackData;
-    } catch (fallbackError) {
-      console.error('Error loading fallback article list:', fallbackError);
-      throw new Error('記事一覧の取得に失敗しました');
+      const possiblePaths = [
+        join(process.cwd(), 'data', 'article-list.json'),
+        join(process.cwd(), 'public', 'article-list.json'),
+      ];
+      
+      if (typeof __dirname !== 'undefined') {
+        possiblePaths.push(join(__dirname, '..', '..', 'data', 'article-list.json'));
+        possiblePaths.push(join(__dirname, '..', '..', 'public', 'article-list.json'));
+      }
+      
+      for (const fallbackPath of possiblePaths) {
+        try {
+          console.log(`Trying fallback path: ${fallbackPath}`);
+          const fallbackData = JSON.parse(readFileSync(fallbackPath, 'utf-8'));
+          console.log(`✅ Using fallback article list: ${fallbackData.length} articles from ${fallbackPath}`);
+          return fallbackData;
+        } catch (pathError) {
+          console.error(`Failed to load from ${fallbackPath}:`, pathError);
+          continue;
+        }
+      }
+      
+      throw new Error('フォールバックファイルも読み込めませんでした');
+    } catch (fallbackError: any) {
+      console.error('❌ Error loading fallback article list:', fallbackError?.message || fallbackError);
+      throw new Error(`記事一覧の取得に失敗しました: ${fallbackError?.message || '不明なエラー'}`);
     }
   }
 }

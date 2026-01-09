@@ -61,18 +61,41 @@ export async function POST(request: NextRequest) {
     if (!spreadsheetData) {
       try {
         // Google Sheets APIから取得を試みる
+        console.log('Attempting to fetch article list from Google Sheets...');
         spreadsheetData = await getArticleList();
         dataSource = 'google-sheets';
         console.log(`✅ Fetched ${spreadsheetData.length} articles from Google Sheets`);
       } catch (sheetsError: any) {
         console.error('⚠️ Google Sheets API error, using fallback:', sheetsError?.message || sheetsError);
+        console.error('Error stack:', sheetsError?.stack);
         // エラーが発生した場合は、フォールバックとしてローカルのJSONファイルを使用
         spreadsheetData = loadArticleListFallback();
         dataSource = 'fallback';
-        if (spreadsheetData.length > 0) {
+        if (spreadsheetData && spreadsheetData.length > 0) {
           console.log(`✅ Using fallback: ${spreadsheetData.length} articles loaded`);
         } else {
           console.error('❌ Fallback also failed: No articles loaded');
+          // 最後の手段として、ハードコードされたデータを使用
+          spreadsheetData = [
+            { title: "Webライターとは？8年経験者が解説！未経験からの始め方9ステップ", url: "https://webwriter-school.net/webwriter/" },
+            { title: "簡単！Wordpressブログの始め方｜Webライター初心者向けに超わかりやすく解説", url: "https://webwriter-school.net/blog-start/" },
+            { title: "2025年版！SEO対策のやり方54選｜わかりやすく基本から解説", url: "https://webwriter-school.net/seo/" },
+            { title: "セールスライティングの型10選！細かい39のコツも例文つきで解説", url: "https://webwriter-school.net/sales-writing/" },
+            { title: "Googleアナリティクスの設定方法と使い方【初心者でも今日導入できる】", url: "https://webwriter-school.net/google-analytics/" },
+            { title: "Googleサーチコンソールの設定方法と使い方【初心者でも登録カンタン】", url: "https://webwriter-school.net/search-console/" },
+            { title: "【初心者向け】Wordpressのおすすめプラグイン【必須5選も紹介】", url: "https://webwriter-school.net/plugin/" },
+            { title: "ワードプレステーマ賢威を5年つかった本音レビュー｜SEOに強い", url: "https://webwriter-school.net/keni/" },
+            { title: "SEO検索順位チェックツールGRCのダウンロード手順と使い方を解説", url: "https://webwriter-school.net/grc/" },
+            { title: "他校の校長が解説！Writing Hacksのメリット10選｜評判も紹介", url: "https://webwriter-school.net/writinghacks/" },
+            { title: "Rank Trackerの導入手順と使い方｜SEOで勝つための機能が豊富すぎる", url: "https://webwriter-school.net/ranktracker/" },
+            { title: "新クラウドソーシング「スキジャン」がリリース【とりあえず登録しとこう】", url: "https://webwriter-school.net/skijan/" },
+            { title: "【無料プレゼント】Webライター大規模教材8個を受け取れます！", url: "https://webwriter-school.net/present/" },
+            { title: "Webライター適性診断ツール", url: "https://webwriter-school.net/tekisei/" },
+            { title: "Webライター「佐藤誠一」のプロフィール", url: "https://webwriter-school.net/profile/" },
+            { title: "問い合わせフォーム", url: "https://webwriter-school.net/contact/" },
+          ];
+          dataSource = 'hardcoded';
+          console.log(`✅ Using hardcoded fallback: ${spreadsheetData.length} articles`);
         }
       }
     }
