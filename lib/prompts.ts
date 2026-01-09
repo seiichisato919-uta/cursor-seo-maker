@@ -10,7 +10,10 @@ export function loadPromptFile(filename: string): string {
   // 方法1: lib/promptsディレクトリから読み込む（Vercel環境で確実）
   // lib/prompts.ts から見て、lib/prompts/ は同じディレクトリ内
   if (typeof __dirname !== 'undefined') {
+    // .txt拡張子付きで試す
     possiblePaths.push(join(__dirname, 'prompts', `${filename}.txt`));
+    // 拡張子なしでも試す
+    possiblePaths.push(join(__dirname, 'prompts', filename));
   }
   
   // 方法2: process.cwd()を使用（通常の開発環境）
