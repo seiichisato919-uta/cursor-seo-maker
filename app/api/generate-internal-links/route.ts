@@ -5,8 +5,9 @@ import { getArticleList } from '@/lib/google-sheets';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 
-// Vercelの関数タイムアウト設定（最大60秒）
-export const maxDuration = 60;
+// Vercelの関数タイムアウト設定
+// 無料プランでは10秒が上限、Proプランでは60秒まで可能
+export const maxDuration = 10;
 
 /**
  * 記事一覧データを読み込む（フォールバック用）
