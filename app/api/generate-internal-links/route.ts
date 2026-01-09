@@ -416,9 +416,17 @@ export async function POST(request: NextRequest) {
     
     let result;
     try {
-      result = await callGemini(fullPrompt, 'gemini-3-pro-preview');
+      // タイムアウトを8秒に設定（Vercelの10秒制限を考慮）
+      result = await callGemini(fullPrompt, 'gemini-3-pro-preview', undefined, 8000);
     } catch (geminiError: any) {
       console.error('Gemini API error:', geminiError);
+      // タイムアウトエラーの場合は、より詳細なエラーメッセージを返す
+      if (geminiError.message && geminiError.message.includes('timeout')) {
+        return NextResponse.json(
+          { error: 'API呼び出しがタイムアウトしました。記事が長すぎる可能性があります。H2ブロックごとに分割して処理してください。' },
+          { status: 504 }
+        );
+      }
       return NextResponse.json(
         { error: `Gemini API呼び出しに失敗しました: ${geminiError.message || '不明なエラー'}` },
         { status: 500 }
