@@ -7,22 +7,23 @@ import { join } from 'path';
 export function loadPromptFile(filename: string): string {
   const possiblePaths: string[] = [];
   
-  // 方法1: lib/promptsディレクトリから読み込む（Vercel環境で確実）
-  // lib/prompts.ts から見て、lib/prompts/ は同じディレクトリ内
+  // 方法1: process.cwd()からlib/prompts/を読み込む（Vercel環境で最も確実）
+  // Next.jsのAPIルートでは、process.cwd()がプロジェクトルートを指す
+  possiblePaths.push(join(process.cwd(), 'lib', 'prompts', `${filename}.txt`));
+  possiblePaths.push(join(process.cwd(), 'lib', 'prompts', filename));
+  
+  // 方法2: __dirnameから相対パスで取得（開発環境）
   if (typeof __dirname !== 'undefined') {
     // .txt拡張子付きで試す
     possiblePaths.push(join(__dirname, 'prompts', `${filename}.txt`));
     // 拡張子なしでも試す
     possiblePaths.push(join(__dirname, 'prompts', filename));
-  }
-  
-  // 方法2: process.cwd()を使用（通常の開発環境）
-  possiblePaths.push(join(process.cwd(), filename));
-  
-  // 方法3: __dirnameから相対パスで取得（プロジェクトルート）
-  if (typeof __dirname !== 'undefined') {
+    // プロジェクトルートからも試す
     possiblePaths.push(join(__dirname, '..', '..', filename));
   }
+  
+  // 方法3: process.cwd()からプロジェクトルート直下を読み込む（フォールバック）
+  possiblePaths.push(join(process.cwd(), filename));
   
   // 各パスを順番に試す
   for (const promptPath of possiblePaths) {
