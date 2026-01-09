@@ -325,12 +325,15 @@ export default function ArticleWriter({ articleData, onSaveArticle }: ArticleWri
 
       const fileData = await Promise.all(fileDataPromises);
 
+      // 削除されたH3を除外（現在のh3sのみを送信）
+      const currentH3s = block.h3s.map(h => h.title).filter(title => title.trim().length > 0);
+
       const response = await fetch('/api/generate-writing', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           h2Block: block.h2Title,
-          h3s: block.h3s.map(h => h.title),
+          h3s: currentH3s, // 現在存在するH3のみを送信
           keyword: articleData.mainKeyword,
           targetReader: articleData.targetReader,
           searchIntent: articleData.searchIntent,
