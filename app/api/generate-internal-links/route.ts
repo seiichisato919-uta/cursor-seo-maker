@@ -9,14 +9,32 @@ import { join } from 'path';
  * 記事一覧データを読み込む（フォールバック用）
  */
 function loadArticleListFallback(): any[] {
-  try {
-    const filePath = join(process.cwd(), 'data', 'article-list.json');
-    const content = readFileSync(filePath, 'utf-8');
-    return JSON.parse(content);
-  } catch (error) {
-    console.error('Error loading article list fallback:', error);
-    return [];
+  const possiblePaths = [
+    join(process.cwd(), 'data', 'article-list.json'),
+    join(process.cwd(), '..', 'data', 'article-list.json'),
+  ];
+  
+  // __dirnameが利用可能な場合も試す
+  if (typeof __dirname !== 'undefined') {
+    possiblePaths.push(join(__dirname, '..', '..', '..', 'data', 'article-list.json'));
+    possiblePaths.push(join(__dirname, '..', '..', 'data', 'article-list.json'));
   }
+  
+  for (const filePath of possiblePaths) {
+    try {
+      console.log(`Trying to load article list from: ${filePath}`);
+      const content = readFileSync(filePath, 'utf-8');
+      const data = JSON.parse(content);
+      console.log(`Successfully loaded ${data.length} articles from fallback file: ${filePath}`);
+      return data;
+    } catch (error) {
+      console.error(`Failed to load from ${filePath}:`, error);
+      continue;
+    }
+  }
+  
+  console.error('All fallback paths failed. Returning empty array.');
+  return [];
 }
 
 export async function POST(request: NextRequest) {
@@ -35,26 +53,41 @@ export async function POST(request: NextRequest) {
     // スプレッドシートデータが提供されている場合はそれを使用
     // 提供されていない場合は、Google Sheets APIから取得を試みる
     let spreadsheetData = data.spreadsheetData;
+    let dataSource = 'manual';
     
     if (!spreadsheetData) {
       try {
         // Google Sheets APIから取得を試みる
         spreadsheetData = await getArticleList();
-        console.log(`Fetched ${spreadsheetData.length} articles from Google Sheets`);
-      } catch (sheetsError) {
-        console.error('Google Sheets API error, using fallback:', sheetsError);
+        dataSource = 'google-sheets';
+        console.log(`✅ Fetched ${spreadsheetData.length} articles from Google Sheets`);
+      } catch (sheetsError: any) {
+        console.error('⚠️ Google Sheets API error, using fallback:', sheetsError?.message || sheetsError);
         // エラーが発生した場合は、フォールバックとしてローカルのJSONファイルを使用
         spreadsheetData = loadArticleListFallback();
-        console.log(`Using fallback: ${spreadsheetData.length} articles`);
+        dataSource = 'fallback';
+        if (spreadsheetData.length > 0) {
+          console.log(`✅ Using fallback: ${spreadsheetData.length} articles loaded`);
+        } else {
+          console.error('❌ Fallback also failed: No articles loaded');
+        }
       }
     }
     
     if (!spreadsheetData || spreadsheetData.length === 0) {
+      console.error('❌ No article list data available');
+      console.error(`Data source: ${dataSource}`);
+      console.error(`Current working directory: ${process.cwd()}`);
       return NextResponse.json(
-        { error: '記事一覧データが取得できませんでした' },
+        { 
+          error: '記事一覧データが取得できませんでした',
+          details: `データソース: ${dataSource}, 作業ディレクトリ: ${process.cwd()}`
+        },
         { status: 500 }
       );
     }
+    
+    console.log(`✅ Article list loaded successfully: ${spreadsheetData.length} articles from ${dataSource}`);
     
     // H2ブロックごとに処理する場合
     if (data.h2Blocks && Array.isArray(data.h2Blocks)) {
