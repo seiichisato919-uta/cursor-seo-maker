@@ -122,12 +122,18 @@ export async function POST(request: NextRequest) {
     if (data.h2Blocks && Array.isArray(data.h2Blocks)) {
       const results: { [key: string]: string } = {};
       
+      // 処理するブロック数を制限（タイムアウト対策）
+      // 一度に処理するブロック数を制限し、残りは後で処理できるようにする
+      const blocksToProcess = data.h2Blocks.filter(block => block.writtenContent && block.writtenContent.trim().length > 0);
+      const maxBlocksPerRequest = 3; // 1リクエストあたり最大3ブロックまで処理
+      const limitedBlocks = blocksToProcess.slice(0, maxBlocksPerRequest);
+      
+      if (blocksToProcess.length > maxBlocksPerRequest) {
+        console.warn(`Processing only first ${maxBlocksPerRequest} blocks out of ${blocksToProcess.length} to avoid timeout. Remaining blocks will need to be processed separately.`);
+      }
+      
       try {
-        for (const block of data.h2Blocks) {
-          if (!block.writtenContent || block.writtenContent.trim().length === 0) {
-            // 執筆内容がない場合はスキップ
-            continue;
-          }
+        for (const block of limitedBlocks) {
 
           const blockArticle = `## ${block.h2Title}\n${block.h3s?.map((h3: any) => `### ${h3.title}`).join('\n') || ''}\n\n${block.writtenContent || ''}`;
           
