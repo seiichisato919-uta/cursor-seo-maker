@@ -130,8 +130,12 @@ ${knowledgeFile}`;
  * タイトル生成プロンプトを取得
  */
 export function getTitlePrompt(data: { keyword: string; targetReader: string; structure: string }): string {
-  // シンプルで明確なプロンプトを作成
-  return `あなたはSEOとキャッチコピーの専門家です。
+  // プロンプトファイルを読み込む
+  let basePrompt = loadPromptFile('SEO記事タイトルプロンプト');
+  
+  // プロンプトファイルが読み込めない場合のフォールバック
+  if (!basePrompt) {
+    basePrompt = `あなたはSEOとキャッチコピーの専門家です。
 
 以下の情報を基に、記事タイトル案を30個作成してください。
 
@@ -160,6 +164,53 @@ export function getTitlePrompt(data: { keyword: string; targetReader: string; st
 30. タイトル案30
 
 **重要**: 必ず30個のタイトルを番号付きで出力してください。カテゴリー分けは不要です。`;
+  } else {
+    // プロンプトファイルが読み込めた場合、対話形式の部分を削除
+    // 「対話の流れ」セクションを削除
+    basePrompt = basePrompt.replace(/# 対話の流れ[\s\S]*?## 質問3: 記事構成の確認[\s\S]*?→すべての回答を受け取ったら、タイトル生成へ/g, '');
+    // 「質問1」「質問2」「質問3」のセクションを削除
+    basePrompt = basePrompt.replace(/## 質問1:[\s\S]*?→ユーザーの回答を受け取った後、次の質問へ/g, '');
+    basePrompt = basePrompt.replace(/## 質問2:[\s\S]*?→ユーザーの回答を受け取った後、次の質問へ/g, '');
+    basePrompt = basePrompt.replace(/## 質問3:[\s\S]*?→すべての回答を受け取ったら、タイトル生成へ/g, '');
+    // 「重要な注意点」の対話に関する部分を削除
+    basePrompt = basePrompt.replace(/# 重要な注意点[\s\S]*?ユーザーの回答内容を要約して確認し、認識が正しいか確認してから次に進んでください/g, '');
+    
+    // データを組み込む
+    basePrompt = basePrompt.replace(/\$\{keyword\}/g, data.keyword || '未指定');
+    basePrompt = basePrompt.replace(/\$\{targetReader\}/g, data.targetReader || '未指定');
+    basePrompt = basePrompt.replace(/\$\{structure\}/g, data.structure || '未指定');
+    
+    // 入力情報を追加
+    basePrompt = `${basePrompt}
+
+## 入力情報
+メインキーワード: ${data.keyword || '未指定'}
+ターゲット読者: ${data.targetReader || '未指定'}
+記事構成: ${data.structure || '未指定'}
+
+## タイトル作成の要件
+1. **必ず30個のタイトル案を作成してください**（30個未満は不可）
+2. **各タイトルは30文字以上40文字以下を厳守してください**（この条件を満たさないタイトルは出力しないでください）
+3. キーワードを自然に含めてください
+4. 以下のパターンをバランスよく含めてください：
+   - 数字型（「5つの方法」「3ステップ」など）
+   - 質問型（「〜とは?」「どうすれば〜?」など）
+   - ベネフィット型（「〜で成功する」「〜を実現」など）
+   - 否定型（「失敗しない〜」「〜してはいけない」など）
+   - 権威型（「プロが教える〜」「専門家が解説」など）
+
+## 出力形式
+各タイトルを以下の形式で出力してください：
+1. タイトル案1
+2. タイトル案2
+3. タイトル案3
+...
+30. タイトル案30
+
+**重要**: 必ず30個のタイトルを番号付きで出力してください。カテゴリー分けは不要です。`;
+  }
+  
+  return basePrompt;
 }
 
 /**
