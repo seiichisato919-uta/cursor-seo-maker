@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { callGemini } from '@/lib/gemini';
 import { getWritingPrompt } from '@/lib/prompts';
 
+export const maxDuration = 10; // Vercelの関数タイムアウト設定（最大10秒）
+
 export async function POST(request: NextRequest) {
   try {
     let data;
@@ -149,12 +151,19 @@ ${data.h3s && data.h3s.length > 0
 
     const finalPrompt = promptWithData + filePromptSection;
     
-    // Gemini API呼び出し
+    // Gemini API呼び出し（タイムアウトを8秒に設定）
     let content;
     try {
-      content = await callGemini(finalPrompt, 'gemini-3-pro-preview', images.length > 0 ? images : undefined);
+      content = await callGemini(finalPrompt, 'gemini-3-pro-preview', images.length > 0 ? images : undefined, 8000);
     } catch (geminiError: any) {
       console.error('Gemini API error:', geminiError);
+      // タイムアウトエラーの場合は、より分かりやすいメッセージを返す
+      if (geminiError.message && (geminiError.message.includes('timeout') || geminiError.message.includes('タイムアウト'))) {
+        return NextResponse.json(
+          { error: `Gemini API呼び出しがタイムアウトしました。プロンプトが長すぎる可能性があります。記事を短く分割するか、添付ファイルを減らしてください。` },
+          { status: 504 }
+        );
+      }
       return NextResponse.json(
         { error: `Gemini API呼び出しに失敗しました: ${geminiError.message || '不明なエラー'}` },
         { status: 500 }
