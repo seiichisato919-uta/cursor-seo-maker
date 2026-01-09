@@ -915,7 +915,10 @@ export default function ArticleWriter({ articleData, onSaveArticle }: ArticleWri
       // writtenContentが含まれているブロックの数を確認
       const blocksWithContent = h2Blocks.filter(block => block.writtenContent && block.writtenContent.trim().length > 0);
       console.log(`[Save] Saving article with ${blocksWithContent.length} blocks with content`);
+      console.log(`[Save] Article ID: ${articleId}`);
       console.log(`[Save] Sample writtenContent length:`, h2Blocks[0]?.writtenContent?.length || 0);
+      console.log(`[Save] Sample writtenContent (first 200 chars):`, h2Blocks[0]?.writtenContent?.substring(0, 200) || '');
+      
       const articleListItem = {
         id: articleId,
         name: articleName,
@@ -929,32 +932,65 @@ export default function ArticleWriter({ articleData, onSaveArticle }: ArticleWri
       const savedArticles = localStorage.getItem('seo-article-list');
       let articles: any[] = [];
       if (savedArticles) {
-        articles = JSON.parse(savedArticles);
+        try {
+          articles = JSON.parse(savedArticles);
+        } catch (parseError) {
+          console.error('Error parsing saved articles:', parseError);
+          articles = [];
+        }
       }
 
       // 既存の記事を更新するか、新規追加（同じ記事IDの場合は上書き）
       const existingIndex = articles.findIndex(a => a.id === articleId);
       if (existingIndex >= 0) {
         articles[existingIndex] = articleListItem;
+        console.log(`[Save] Updated existing article at index ${existingIndex}`);
       } else {
         articles.push(articleListItem);
+        console.log(`[Save] Added new article to list`);
       }
 
       // 記事一覧を保存
-      localStorage.setItem('seo-article-list', JSON.stringify(articles));
+      try {
+        localStorage.setItem('seo-article-list', JSON.stringify(articles));
+        console.log(`[Save] Saved article list with ${articles.length} articles`);
+      } catch (listError: any) {
+        console.error('[Save] Error saving article list:', listError);
+        if (listError.name === 'QuotaExceededError') {
+          alert('保存領域が不足しています。古い記事を削除してください。');
+          return;
+        }
+      }
 
       // articleIdに基づいて保存（自動保存用）
-      localStorage.setItem(`seo-article-data-${articleId}`, JSON.stringify(dataToSave));
+      try {
+        localStorage.setItem(`seo-article-data-${articleId}`, JSON.stringify(dataToSave));
+        console.log(`[Save] Saved article data to seo-article-data-${articleId}`);
+        
+        // 保存されたデータを確認
+        const savedDataCheck = localStorage.getItem(`seo-article-data-${articleId}`);
+        if (savedDataCheck) {
+          const parsed = JSON.parse(savedDataCheck);
+          const savedBlocksWithContent = parsed.h2Blocks?.filter((b: any) => b.writtenContent && b.writtenContent.trim().length > 0) || [];
+          console.log(`[Save] Verified: Saved data contains ${savedBlocksWithContent.length} blocks with content`);
+        }
+      } catch (dataError: any) {
+        console.error('[Save] Error saving article data:', dataError);
+        if (dataError.name === 'QuotaExceededError') {
+          alert('保存領域が不足しています。古い記事を削除してください。');
+          return;
+        }
+      }
 
       // 親コンポーネントに通知
       if (onSaveArticle) {
         onSaveArticle({ ...dataToSave, articleId });
       }
 
-      alert('保存しました！');
-    } catch (error) {
+      alert(`保存しました！\n記事ID: ${articleId}\n保存されたブロック数: ${blocksWithContent.length}`);
+    } catch (error: any) {
       console.error('Error saving:', error);
-      alert('保存に失敗しました');
+      alert(`保存に失敗しました: ${error.message || '不明なエラー'}`);
     }
   };
 
