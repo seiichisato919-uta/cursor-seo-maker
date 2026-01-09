@@ -124,7 +124,7 @@ export async function POST(request: NextRequest) {
       
       // 処理するブロック数を制限（タイムアウト対策）
       // 一度に処理するブロック数を制限し、残りは後で処理できるようにする
-      const blocksToProcess = data.h2Blocks.filter(block => block.writtenContent && block.writtenContent.trim().length > 0);
+      const blocksToProcess = data.h2Blocks.filter((block: any) => block.writtenContent && block.writtenContent.trim().length > 0);
       const maxBlocksPerRequest = 3; // 1リクエストあたり最大3ブロックまで処理
       const limitedBlocks = blocksToProcess.slice(0, maxBlocksPerRequest);
       
