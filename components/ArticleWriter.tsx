@@ -887,8 +887,9 @@ export default function ArticleWriter({ articleData, onSaveArticle }: ArticleWri
 
     try {
       // 記事一覧に追加（同じ記事IDの場合は上書き保存）
-      const articleId = articleData.articleId || `article-${Date.now()}`;
+      const articleId = articleData.articleId || currentArticleId || `article-${Date.now()}`;
       
+      // writtenContentを含めて確実に保存
       const dataToSave = {
         ...articleData,
         articleId,
@@ -896,6 +897,7 @@ export default function ArticleWriter({ articleData, onSaveArticle }: ArticleWri
         structure,
         h2Blocks: h2Blocks.map(block => ({
           ...block,
+          writtenContent: block.writtenContent || '', // writtenContentを確実に含める
           attachedFiles: [], // ファイルは保存しない（Fileオブジェクトはシリアライズできない）
         })),
         intro,
@@ -907,6 +909,7 @@ export default function ArticleWriter({ articleData, onSaveArticle }: ArticleWri
       // writtenContentが含まれているブロックの数を確認
       const blocksWithContent = h2Blocks.filter(block => block.writtenContent && block.writtenContent.trim().length > 0);
       console.log(`[Save] Saving article with ${blocksWithContent.length} blocks with content`);
+      console.log(`[Save] Sample writtenContent length:`, h2Blocks[0]?.writtenContent?.length || 0);
       const articleListItem = {
         id: articleId,
         name: articleName,
@@ -1125,6 +1128,8 @@ export default function ArticleWriter({ articleData, onSaveArticle }: ArticleWri
                               ? {
                                   ...b,
                                   h3s: b.h3s.filter((_, i) => i !== index),
+                                  // H3を削除した場合、そのH3に関連する執筆内容もクリアする必要はない
+                                  // （H3のタイトルが変わっただけなので、既存の執筆内容は保持）
                                 }
                               : b
                           )

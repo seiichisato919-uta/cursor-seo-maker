@@ -66,7 +66,10 @@ export async function POST(request: NextRequest) {
 
 ## 執筆対象のH2ブロック情報
 H2ブロック: ${data.h2Block}
-H3一覧: ${JSON.stringify(data.h3s)}
+${data.h3s && data.h3s.length > 0 
+  ? `H3一覧: ${JSON.stringify(data.h3s)}
+**重要**: 上記のH3一覧に記載されているH3のみを執筆してください。削除されたH3は執筆しないでください。`
+  : `**重要**: このH2ブロックにはH3見出しがありません。H2単体の内容を執筆してください。`}
 キーワード: ${data.keyword}
 ターゲット読者: ${data.targetReader}
 検索意図: ${data.searchIntent}

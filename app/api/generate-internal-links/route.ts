@@ -11,13 +11,16 @@ import { join } from 'path';
 function loadArticleListFallback(): any[] {
   const possiblePaths = [
     join(process.cwd(), 'data', 'article-list.json'),
+    join(process.cwd(), 'public', 'article-list.json'),
     join(process.cwd(), '..', 'data', 'article-list.json'),
   ];
   
   // __dirnameが利用可能な場合も試す
   if (typeof __dirname !== 'undefined') {
     possiblePaths.push(join(__dirname, '..', '..', '..', 'data', 'article-list.json'));
+    possiblePaths.push(join(__dirname, '..', '..', '..', 'public', 'article-list.json'));
     possiblePaths.push(join(__dirname, '..', '..', 'data', 'article-list.json'));
+    possiblePaths.push(join(__dirname, '..', '..', 'public', 'article-list.json'));
   }
   
   for (const filePath of possiblePaths) {
@@ -25,15 +28,15 @@ function loadArticleListFallback(): any[] {
       console.log(`Trying to load article list from: ${filePath}`);
       const content = readFileSync(filePath, 'utf-8');
       const data = JSON.parse(content);
-      console.log(`Successfully loaded ${data.length} articles from fallback file: ${filePath}`);
+      console.log(`✅ Successfully loaded ${data.length} articles from fallback file: ${filePath}`);
       return data;
     } catch (error) {
-      console.error(`Failed to load from ${filePath}:`, error);
+      console.error(`❌ Failed to load from ${filePath}:`, error);
       continue;
     }
   }
   
-  console.error('All fallback paths failed. Returning empty array.');
+  console.error('❌ All fallback paths failed. Returning empty array.');
   return [];
 }
 
