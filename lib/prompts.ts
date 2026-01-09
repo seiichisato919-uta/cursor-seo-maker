@@ -134,6 +134,13 @@ export function getTitlePrompt(data: { keyword: string; targetReader: string; st
   // プロンプトファイルを読み込む
   let basePrompt = loadPromptFile('SEO記事タイトルプロンプト');
   
+  // デバッグログ
+  if (!basePrompt) {
+    console.error('⚠️ 警告: SEO記事タイトルプロンプトファイルが読み込めませんでした。プロジェクトルートに「SEO記事タイトルプロンプト」ファイルが存在するか確認してください。');
+  } else {
+    console.log(`✅ プロンプトファイル「SEO記事タイトルプロンプト」を読み込みました（${basePrompt.length}文字）。`);
+  }
+  
   // プロンプトファイルが読み込めない場合のフォールバック
   if (!basePrompt) {
     basePrompt = `あなたはSEOとキャッチコピーの専門家です。
@@ -167,16 +174,16 @@ export function getTitlePrompt(data: { keyword: string; targetReader: string; st
 **重要**: 必ず30個のタイトルを番号付きで出力してください。カテゴリー分けは不要です。`;
   } else {
     // プロンプトファイルが読み込めた場合、対話形式の部分を削除
-    // 「対話の流れ」セクションを削除
-    basePrompt = basePrompt.replace(/# 対話の流れ[\s\S]*?## 質問3: 記事構成の確認[\s\S]*?→すべての回答を受け取ったら、タイトル生成へ/g, '');
-    // 「質問1」「質問2」「質問3」のセクションを削除
-    basePrompt = basePrompt.replace(/## 質問1:[\s\S]*?→ユーザーの回答を受け取った後、次の質問へ/g, '');
-    basePrompt = basePrompt.replace(/## 質問2:[\s\S]*?→ユーザーの回答を受け取った後、次の質問へ/g, '');
-    basePrompt = basePrompt.replace(/## 質問3:[\s\S]*?→すべての回答を受け取ったら、タイトル生成へ/g, '');
+    // 「対話の流れ」セクション全体を削除
+    basePrompt = basePrompt.replace(/# 対話の流れ[\s\S]*?→すべての回答を受け取ったら、タイトル生成へ/g, '');
+    // 「質問1」「質問2」「質問3」のセクションを削除（個別に削除）
+    basePrompt = basePrompt.replace(/## 質問1: キーワードの確認[\s\S]*?→ユーザーの回答を受け取った後、次の質問へ/gs, '');
+    basePrompt = basePrompt.replace(/## 質問2: 想定読者の確認[\s\S]*?→ユーザーの回答を受け取った後、次の質問へ/gs, '');
+    basePrompt = basePrompt.replace(/## 質問3: 記事構成の確認[\s\S]*?→すべての回答を受け取ったら、タイトル生成へ/gs, '');
     // 「重要な注意点」の対話に関する部分を削除
-    basePrompt = basePrompt.replace(/# 重要な注意点[\s\S]*?ユーザーの回答内容を要約して確認し、認識が正しいか確認してから次に進んでください/g, '');
+    basePrompt = basePrompt.replace(/# 重要な注意点[\s\S]*?ユーザーの回答内容を要約して確認し、認識が正しいか確認してから次に進んでください/gs, '');
     
-    // データを組み込む
+    // データを組み込む（プロンプトファイル内に変数がある場合）
     basePrompt = basePrompt.replace(/\$\{keyword\}/g, data.keyword || '未指定');
     basePrompt = basePrompt.replace(/\$\{targetReader\}/g, data.targetReader || '未指定');
     basePrompt = basePrompt.replace(/\$\{structure\}/g, data.structure || '未指定');
