@@ -134,6 +134,7 @@ export default function ArticleWriter({ articleData, onSaveArticle }: ArticleWri
           structure,
           h2Blocks: h2Blocks.map(block => ({
             ...block,
+            writtenContent: block.writtenContent || '', // writtenContentを確実に含める
             attachedFiles: [], // ファイルは保存しない
           })),
           intro,
@@ -171,6 +172,7 @@ export default function ArticleWriter({ articleData, onSaveArticle }: ArticleWri
           structure,
           h2Blocks: h2Blocks.map(block => ({
             ...block,
+            writtenContent: block.writtenContent || '', // writtenContentを確実に含める
             attachedFiles: [], // ファイルは保存しない
           })),
           intro,
@@ -210,6 +212,7 @@ export default function ArticleWriter({ articleData, onSaveArticle }: ArticleWri
           structure,
           h2Blocks: h2Blocks.map(block => ({
             ...block,
+            writtenContent: block.writtenContent || '', // writtenContentを確実に含める
             attachedFiles: [], // ファイルは保存しない
           })),
           intro,
