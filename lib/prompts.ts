@@ -311,12 +311,17 @@ export function getInternalLinkPrompt(data: { article: string; spreadsheetData?:
   
   let spreadsheetSection = '';
   if (data.spreadsheetData) {
+    // 記事一覧を簡潔な形式に変換（プロンプトを短縮）
+    const articleList = Array.isArray(data.spreadsheetData) 
+      ? data.spreadsheetData.map((item: any) => `${item.title} (${item.url})`).join('\n')
+      : JSON.stringify(data.spreadsheetData, null, 2);
+    
     spreadsheetSection = `
 
 ## ナレッジ: 「Webライターの学校」記事一覧
-以下の記事一覧を参照し、適切な内部リンクを提案してください：
+以下の記事一覧を参照し、適切な内部リンクを提案してください（形式: 記事タイトル (URL)）：
 
-${JSON.stringify(data.spreadsheetData, null, 2)}`;
+${articleList}`;
   }
   
   return `${basePrompt}${spreadsheetSection}

@@ -200,11 +200,18 @@ export async function POST(request: NextRequest) {
           
           let result;
           try {
-            result = await callGemini(fullPrompt, 'gemini-3-pro-preview');
+            // タイムアウトを8秒に設定（Vercelの10秒制限を考慮）
+            result = await callGemini(fullPrompt, 'gemini-3-pro-preview', undefined, 8000);
             console.log(`[Internal Links] Block ${block.id} - Raw API response length: ${result?.length || 0}`);
             console.log(`[Internal Links] Block ${block.id} - Raw API response (first 500 chars):`, result?.substring(0, 500));
           } catch (geminiError: any) {
             console.error(`Gemini API error for block ${block.id}:`, geminiError);
+            // タイムアウトエラーの場合は、既存の内容をそのまま返す
+            if (geminiError.message && geminiError.message.includes('timeout')) {
+              console.warn(`Timeout for block ${block.id}, returning original content`);
+              results[block.id] = block.writtenContent;
+              continue;
+            }
             throw new Error(`Gemini API呼び出しに失敗しました: ${geminiError.message || '不明なエラー'}`);
           }
           
