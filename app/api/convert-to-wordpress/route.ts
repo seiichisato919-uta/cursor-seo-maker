@@ -103,6 +103,15 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ html: extractedHtml, wordpressHtml: extractedHtml });
   } catch (error: any) {
     console.error('Error converting to WordPress:', error);
+    
+    // 認証エラーの場合、より分かりやすいエラーメッセージを返す
+    if (error.message?.includes('ANTHROPIC_API_KEY') || error.message?.includes('認証に失敗') || error.status === 401) {
+      return NextResponse.json(
+        { error: 'Claude APIの認証に失敗しました。Vercelの環境変数設定でANTHROPIC_API_KEYが正しく設定されているか確認してください。' },
+        { status: 401 }
+      );
+    }
+    
     return NextResponse.json(
       { error: error.message || 'WordPress HTML変換に失敗しました' },
       { status: 500 }
