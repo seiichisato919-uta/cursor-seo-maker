@@ -833,18 +833,69 @@ export default function ArticleWriter({ articleData, onSaveArticle }: ArticleWri
 
       // H2ブロックごとに「※ここにセールス文を書く」が挿入された内容を取得
       if (data.h2BlocksWithSalesMarkers) {
+        // デバッグログを追加
+        console.log('[Sales Locations] Received h2BlocksWithSalesMarkers:', data.h2BlocksWithSalesMarkers);
+        Object.keys(data.h2BlocksWithSalesMarkers).forEach(blockId => {
+          const content = data.h2BlocksWithSalesMarkers[blockId];
+          const hasSalesMarker = content.includes('※ここにセールス文を書く');
+          console.log(`[Sales Locations] Block ${blockId} - Content length: ${content.length}`);
+          console.log(`[Sales Locations] Block ${blockId} - Has sales marker: ${hasSalesMarker}`);
+          console.log(`[Sales Locations] Block ${blockId} - Content preview (first 500 chars):`, content.substring(0, 500));
+        });
+        
         // 各H2ブロックの執筆内容を更新
-        setH2Blocks(prevBlocks =>
-          prevBlocks.map(block => {
+        setH2Blocks(prevBlocks => {
+          const updatedBlocks = prevBlocks.map(block => {
             const updatedContent = data.h2BlocksWithSalesMarkers[block.id];
             if (updatedContent) {
+              console.log(`[Sales Locations] Updating block ${block.id} with new content`);
               return { ...block, writtenContent: updatedContent };
             }
+            console.log(`[Sales Locations] Block ${block.id} - No updated content found`);
             return block;
-          })
-        );
+          });
+          
+          // セールス箇所追加後、即座に保存（自動保存を待たない）
+          try {
+            const articleId = articleData.articleId || currentArticleId || `article-${Date.now()}`;
+            const blocksWithContent = updatedBlocks.filter(block => block.writtenContent && block.writtenContent.trim().length > 0);
+            
+            const dataToSave = {
+              ...articleData,
+              articleId,
+              title,
+              structure,
+              h2Blocks: updatedBlocks.map(block => ({
+                ...block,
+                writtenContent: block.writtenContent || '',
+                attachedFiles: [], // ファイルは保存しない
+              })),
+              intro,
+              introHtmlContent,
+              description,
+              savedAt: new Date().toISOString(),
+            };
+            
+            const saveKey = `seo-article-data-${articleId}`;
+            localStorage.setItem(saveKey, JSON.stringify(dataToSave));
+            console.log(`[Sales Locations] Immediately saved ${blocksWithContent.length} blocks with content to ${saveKey}`);
+          } catch (saveError) {
+            console.error('[Sales Locations] Error saving immediately after adding markers:', saveError);
+          }
+          
+          return updatedBlocks;
+        });
         
-        alert('セールス箇所に「※ここにセールス文を書く」が追加されました。');
+        // 残りのブロックがある場合は、次のブロックを処理する
+        const processedBlockIds = Object.keys(data.h2BlocksWithSalesMarkers);
+        const remainingBlocks = blocksWithContent.filter(block => !processedBlockIds.includes(block.id));
+        
+        if (remainingBlocks.length > 0) {
+          console.log(`Processed ${processedBlockIds.length} blocks, ${remainingBlocks.length} remaining. Please click the button again to process remaining blocks.`);
+          alert(`${processedBlockIds.length}個のブロックにセールス箇所を追加しました。\n残り${remainingBlocks.length}個のブロックがあります。\n「セールス箇所を提案してもらう」ボタンを再度押して、残りのブロックを処理してください。`);
+        } else {
+          alert('すべてのブロックにセールス箇所を追加しました！');
+        }
       } else if (data.salesLocations) {
         // 後方互換性：記事全体が返された場合
         alert('セールス箇所が生成されましたが、H2ブロックごとの処理が必要です。');
