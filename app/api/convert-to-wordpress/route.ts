@@ -60,12 +60,17 @@ function extractHtmlCode(responseText: string): string {
 
 export async function POST(request: NextRequest) {
   try {
-    // 環境変数の確認
+    // 環境変数の確認（より詳細なログ）
     const apiKey = process.env.ANTHROPIC_API_KEY;
+    console.log('[Convert to WordPress] ===== Environment Variable Check =====');
     console.log('[Convert to WordPress] ANTHROPIC_API_KEY exists:', !!apiKey);
     console.log('[Convert to WordPress] ANTHROPIC_API_KEY length:', apiKey?.length || 0);
+    console.log('[Convert to WordPress] ANTHROPIC_API_KEY first 10 chars:', apiKey?.substring(0, 10) || 'N/A');
+    console.log('[Convert to WordPress] ANTHROPIC_API_KEY starts with sk-ant:', apiKey?.startsWith('sk-ant-') || false);
+    console.log('[Convert to WordPress] All env vars:', Object.keys(process.env).filter(key => key.includes('ANTHROPIC') || key.includes('CLAUDE')));
     
     if (!apiKey) {
+      console.error('[Convert to WordPress] ERROR: ANTHROPIC_API_KEY is not set!');
       return NextResponse.json(
         { error: 'ANTHROPIC_API_KEY環境変数が設定されていません。Vercelの環境変数設定を確認してください。' },
         { status: 500 }
