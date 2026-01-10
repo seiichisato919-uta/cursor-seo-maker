@@ -77,6 +77,12 @@ export async function POST(request: NextRequest) {
           
           const blockArticle = `${contentToProcess}`;
           
+          // 記事全体で既に「※ここにセールス文を書く」が2箇所以上ある場合は、このブロックには挿入しない
+          const currentTotalMarkers = totalSalesMarkers;
+          const shouldInsertMarker = currentTotalMarkers < 2;
+          
+          console.log(`[Sales Locations] Block ${block.id} - Current total markers: ${currentTotalMarkers}, Should insert: ${shouldInsertMarker}`);
+          
           // プロンプトを取得
           let fullPrompt;
           try {
@@ -84,6 +90,8 @@ export async function POST(request: NextRequest) {
               article: blockArticle,
               productUrl: data.productUrl,
               articleTopic: data.articleTopic,
+              currentTotalMarkers: currentTotalMarkers,
+              shouldInsertMarker: shouldInsertMarker,
             });
           } catch (promptError: any) {
             console.error('Prompt generation error:', promptError);
