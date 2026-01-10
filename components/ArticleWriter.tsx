@@ -1007,11 +1007,38 @@ export default function ArticleWriter({ articleData, onSaveArticle }: ArticleWri
   const handleGenerateSupervisorComments = useCallback(async () => {
     setSupervisorCommentLoading(true);
     try {
+      // 執筆内容があるH2ブロックのみを送信
+      // 既に「<佐藤誠一吹き出し>」が含まれているブロックはスキップ
+      // 「導入文」「ディスクリプション」「まとめ」ブロックもスキップ
+      const blocksWithContent = h2Blocks.filter(block => {
+        if (!block.writtenContent || block.writtenContent.trim().length === 0) {
+          return false;
+        }
+        // 「導入文」「ディスクリプション」「まとめ」には監修者の吹き出しを書かない
+        const h2Title = block.h2Title || '';
+        const isIntroBlock = h2Title.includes('導入') || h2Title.includes('導入文');
+        const isDescriptionBlock = h2Title.includes('ディスクリプション') || h2Title.includes('description');
+        const isSummaryBlock = h2Title.includes('まとめ');
+        if (isIntroBlock || isDescriptionBlock || isSummaryBlock) {
+          return false;
+        }
+        // 既に監修者の吹き出しが含まれている場合はスキップ
+        const hasSupervisorComment = block.writtenContent.includes('<佐藤誠一吹き出し>');
+        return !hasSupervisorComment;
+      });
+      console.log(`[Supervisor Comments] Found ${blocksWithContent.length} blocks with content (excluding already processed blocks)`);
+      
+      if (blocksWithContent.length === 0) {
+        alert('すべてのブロックに監修者の吹き出しが追加済みです。または、執筆内容がありません。');
+        setSupervisorCommentLoading(false);
+        return;
+      }
+      
       const response = await fetch('/api/generate-supervisor-comments', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          h2Blocks: h2Blocks.map(block => ({
+          h2Blocks: blocksWithContent.map(block => ({
             id: block.id,
             h2Title: block.h2Title,
             h3s: block.h3s,
