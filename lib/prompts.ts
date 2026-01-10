@@ -301,13 +301,19 @@ export function getInternalLinkPrompt(data: { article: string; spreadsheetData?:
     return `内部リンクを提案してください。`;
   }
   
-  // プロンプトから不要なセクションを削除
+  // プロンプトから不要なセクションを削除（タイムアウト対策のため簡潔化）
   // 「応答開始時のテンプレート」セクションを削除
   basePrompt = basePrompt.replace(/## 応答開始時のテンプレート[\s\S]*?\[ここから実際の出力を開始\]/g, '');
   // 「継続的改善のためのフィードバック要請」セクションを削除
   basePrompt = basePrompt.replace(/## 継続的改善のためのフィードバック要請[\s\S]*?削除すべきリンク提案はありますか\?/g, '');
   // 「実行コマンド」セクションを削除
   basePrompt = basePrompt.replace(/## 実行コマンド[\s\S]*?このプロンプトに従って分析と提案を開始してください。[\s\S]*?$/g, '');
+  // 「処理フロー」セクションを簡潔化
+  basePrompt = basePrompt.replace(/## 処理フロー[\s\S]*?---/g, '');
+  // 「内部リンク選定の判断基準」セクションを簡潔化
+  basePrompt = basePrompt.replace(/## 内部リンク選定の判断基準[\s\S]*?---/g, '');
+  // 「実行時の注意事項」セクションを簡潔化
+  basePrompt = basePrompt.replace(/## 実行時の注意事項[\s\S]*?---/g, '');
   
   let spreadsheetSection = '';
   if (data.spreadsheetData) {

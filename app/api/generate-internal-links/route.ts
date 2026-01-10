@@ -7,7 +7,8 @@ import { join } from 'path';
 
 // Vercelの関数タイムアウト設定
 // 無料プランでは10秒が上限、Proプランでは60秒まで可能
-export const maxDuration = 60;
+// 無料プランでも動作するように10秒に設定
+export const maxDuration = 10;
 
 /**
  * 記事一覧データを読み込む（フォールバック用）
@@ -124,19 +125,23 @@ export async function POST(request: NextRequest) {
       const results: { [key: string]: string } = {};
       
       // 処理するブロック数を制限（タイムアウト対策）
-      // 一度に処理するブロック数を制限し、残りは後で処理できるようにする
+      // 無料プランの10秒制限を考慮して、1ブロックずつ処理する
       const blocksToProcess = data.h2Blocks.filter((block: any) => block.writtenContent && block.writtenContent.trim().length > 0);
-      const maxBlocksPerRequest = 3; // 1リクエストあたり最大3ブロックまで処理
+      const maxBlocksPerRequest = 1; // 1リクエストあたり1ブロックのみ処理（タイムアウト回避）
       const limitedBlocks = blocksToProcess.slice(0, maxBlocksPerRequest);
       
       if (blocksToProcess.length > maxBlocksPerRequest) {
-        console.warn(`Processing only first ${maxBlocksPerRequest} blocks out of ${blocksToProcess.length} to avoid timeout. Remaining blocks will need to be processed separately.`);
+        console.warn(`Processing only first ${maxBlocksPerRequest} block out of ${blocksToProcess.length} to avoid timeout. Remaining blocks will need to be processed separately.`);
       }
       
       try {
         for (const block of limitedBlocks) {
-
-          const blockArticle = `## ${block.h2Title}\n${block.h3s?.map((h3: any) => `### ${h3.title}`).join('\n') || ''}\n\n${block.writtenContent || ''}`;
+          // 記事内容が長すぎる場合は先頭5000文字に制限（タイムアウト対策）
+          const contentToProcess = block.writtenContent && block.writtenContent.length > 5000 
+            ? block.writtenContent.substring(0, 5000) + '\n\n（...以下省略）'
+            : block.writtenContent || '';
+          
+          const blockArticle = `## ${block.h2Title}\n${block.h3s?.map((h3: any) => `### ${h3.title}`).join('\n') || ''}\n\n${contentToProcess}`;
           
           // プロンプトを取得
           let fullPrompt;
@@ -150,18 +155,13 @@ export async function POST(request: NextRequest) {
             throw new Error(`プロンプトの生成に失敗しました: ${promptError.message}`);
           }
           
-          // 既存の記事内容を保持したまま、内部リンクを挿入するように指示（簡潔版）
-          fullPrompt += `
-
-## 出力形式
-- 既存の記事内容を一字一句そのまま保持し、適切な箇所に「参考記事:記事タイトル(URL)」形式で内部リンクを挿入
-- 見出しは出力せず、本文のみを出力
-- 分析結果やメッセージは一切出力しない`;
+          // 既存の記事内容を保持したまま、内部リンクを挿入するように指示（超簡潔版）
+          fullPrompt += `\n\n出力: 既存の記事内容をそのまま保持し、「参考記事:記事タイトル(URL)」形式で内部リンクを挿入。見出しは出力しない。`;
           
           let result;
           try {
-            // タイムアウトを55秒に設定（Vercelの60秒制限を考慮）
-            result = await callGemini(fullPrompt, 'gemini-3-pro-preview', undefined, 55000);
+            // タイムアウトを8秒に設定（Vercelの10秒制限を考慮）
+            result = await callGemini(fullPrompt, 'gemini-3-pro-preview', undefined, 8000);
             console.log(`[Internal Links] Block ${block.id} - Raw API response length: ${result?.length || 0}`);
             console.log(`[Internal Links] Block ${block.id} - Raw API response (first 500 chars):`, result?.substring(0, 500));
           } catch (geminiError: any) {
@@ -360,8 +360,8 @@ export async function POST(request: NextRequest) {
     
     let result;
     try {
-      // タイムアウトを55秒に設定（Vercelの60秒制限を考慮）
-      result = await callGemini(fullPrompt, 'gemini-3-pro-preview', undefined, 55000);
+      // タイムアウトを8秒に設定（Vercelの10秒制限を考慮）
+      result = await callGemini(fullPrompt, 'gemini-3-pro-preview', undefined, 8000);
     } catch (geminiError: any) {
       console.error('Gemini API error:', geminiError);
       // タイムアウトエラーの場合は、より詳細なエラーメッセージを返す
