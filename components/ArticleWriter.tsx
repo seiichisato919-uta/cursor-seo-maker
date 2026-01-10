@@ -702,8 +702,8 @@ export default function ArticleWriter({ articleData, onSaveArticle }: ArticleWri
         });
         
         // 各H2ブロックの執筆内容を更新
-        setH2Blocks(prevBlocks =>
-          prevBlocks.map(block => {
+        setH2Blocks(prevBlocks => {
+          const updatedBlocks = prevBlocks.map(block => {
             const updatedContent = data.h2BlocksWithLinks[block.id];
             if (updatedContent) {
               console.log(`[Internal Links] Updating block ${block.id} with new content`);
@@ -711,8 +711,38 @@ export default function ArticleWriter({ articleData, onSaveArticle }: ArticleWri
             }
             console.log(`[Internal Links] Block ${block.id} - No updated content found`);
             return block;
-          })
-        );
+          });
+          
+          // 内部リンク追加後、即座に保存（自動保存を待たない）
+          try {
+            const articleId = articleData.articleId || currentArticleId || `article-${Date.now()}`;
+            const blocksWithContent = updatedBlocks.filter(block => block.writtenContent && block.writtenContent.trim().length > 0);
+            
+            const dataToSave = {
+              ...articleData,
+              articleId,
+              title,
+              structure,
+              h2Blocks: updatedBlocks.map(block => ({
+                ...block,
+                writtenContent: block.writtenContent || '',
+                attachedFiles: [], // ファイルは保存しない
+              })),
+              intro,
+              introHtmlContent,
+              description,
+              savedAt: new Date().toISOString(),
+            };
+            
+            const saveKey = `seo-article-data-${articleId}`;
+            localStorage.setItem(saveKey, JSON.stringify(dataToSave));
+            console.log(`[Internal Links] Immediately saved ${blocksWithContent.length} blocks with content to ${saveKey}`);
+          } catch (saveError) {
+            console.error('[Internal Links] Error saving immediately after adding links:', saveError);
+          }
+          
+          return updatedBlocks;
+        });
         
         // 残りのブロックがある場合は、次のブロックを処理する
         const processedBlockIds = Object.keys(data.h2BlocksWithLinks);
