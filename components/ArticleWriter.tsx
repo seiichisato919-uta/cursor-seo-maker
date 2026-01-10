@@ -1039,16 +1039,81 @@ export default function ArticleWriter({ articleData, onSaveArticle }: ArticleWri
 
       // H2ブロックごとに更新
       if (data.h2BlocksWithComments) {
-        setH2Blocks(prevBlocks =>
-          prevBlocks.map(block => {
+        // デバッグログを追加
+        console.log('[Supervisor Comments] Received h2BlocksWithComments:', data.h2BlocksWithComments);
+        Object.keys(data.h2BlocksWithComments).forEach(blockId => {
+          const content = data.h2BlocksWithComments[blockId];
+          const hasSupervisorComment = content.includes('<佐藤誠一吹き出し>');
+          console.log(`[Supervisor Comments] Block ${blockId} - Content length: ${content.length}`);
+          console.log(`[Supervisor Comments] Block ${blockId} - Has supervisor comment: ${hasSupervisorComment}`);
+          console.log(`[Supervisor Comments] Block ${blockId} - Content preview (first 500 chars):`, content.substring(0, 500));
+        });
+        
+        setH2Blocks(prevBlocks => {
+          const updatedBlocks = prevBlocks.map(block => {
             const updatedContent = data.h2BlocksWithComments[block.id];
             if (updatedContent !== undefined) {
+              console.log(`[Supervisor Comments] Updating block ${block.id} with new content`);
               return { ...block, writtenContent: updatedContent };
             }
+            console.log(`[Supervisor Comments] Block ${block.id} - No updated content found`);
             return block;
-          })
-        );
-        alert('監修者の吹き出しが生成されました');
+          });
+          
+          // 監修者の吹き出し追加後、即座に保存（自動保存を待たない）
+          try {
+            const articleId = articleData.articleId || currentArticleId || `article-${Date.now()}`;
+            const blocksWithContent = updatedBlocks.filter(block => block.writtenContent && block.writtenContent.trim().length > 0);
+            
+            const dataToSave = {
+              ...articleData,
+              articleId,
+              title,
+              structure,
+              h2Blocks: updatedBlocks.map(block => ({
+                ...block,
+                writtenContent: block.writtenContent || '',
+                attachedFiles: [], // ファイルは保存しない
+              })),
+              intro,
+              introHtmlContent,
+              description,
+              savedAt: new Date().toISOString(),
+            };
+            
+            const saveKey = `seo-article-data-${articleId}`;
+            localStorage.setItem(saveKey, JSON.stringify(dataToSave));
+            console.log(`[Supervisor Comments] Immediately saved ${blocksWithContent.length} blocks with content to ${saveKey}`);
+          } catch (saveError) {
+            console.error('[Supervisor Comments] Error saving immediately after adding comments:', saveError);
+          }
+          
+          return updatedBlocks;
+        });
+        
+        // 残りのブロックがある場合は、次のブロックを処理する
+        const processedBlockIds = Object.keys(data.h2BlocksWithComments);
+        const allBlocks = h2Blocks.filter(block => {
+          if (!block.writtenContent || block.writtenContent.trim().length === 0) {
+            return false;
+          }
+          const h2Title = block.h2Title || '';
+          const isIntroBlock = h2Title.includes('導入') || h2Title.includes('導入文');
+          const isDescriptionBlock = h2Title.includes('ディスクリプション') || h2Title.includes('description');
+          const isSummaryBlock = h2Title.includes('まとめ');
+          if (isIntroBlock || isDescriptionBlock || isSummaryBlock) {
+            return false;
+          }
+          return true;
+        });
+        const remainingBlocks = allBlocks.filter(block => !processedBlockIds.includes(block.id) && !block.writtenContent.includes('<佐藤誠一吹き出し>'));
+        
+        if (remainingBlocks.length > 0) {
+          console.log(`Processed ${processedBlockIds.length} blocks, ${remainingBlocks.length} remaining. Please click the button again to process remaining blocks.`);
+          alert(`${processedBlockIds.length}個のブロックに監修者の吹き出しを追加しました。\n残り${remainingBlocks.length}個のブロックがあります。\n「監修者の吹き出しを執筆する」ボタンを再度押して、残りのブロックを処理してください。`);
+        } else {
+          alert('すべてのブロックに監修者の吹き出しを追加しました！');
+        }
       } else {
         alert('監修者の吹き出しが生成されました: ' + (data.comments || 'コメントが生成されませんでした'));
       }

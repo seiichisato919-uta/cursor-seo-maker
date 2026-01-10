@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { callGemini } from '@/lib/gemini';
 import { getSupervisorCommentPrompt } from '@/lib/prompts';
 
+// Vercelの関数タイムアウト設定
+// Proプランでは60秒まで可能
+export const maxDuration = 60;
+
 export async function POST(request: NextRequest) {
   try {
     const data = await request.json();
@@ -10,8 +14,47 @@ export async function POST(request: NextRequest) {
     if (data.h2Blocks && Array.isArray(data.h2Blocks)) {
       const results: { [key: string]: string } = {};
       
+      // 処理するブロック数を制限（タイムアウト対策）
+      // 1リクエストあたり1ブロックのみ処理（タイムアウト回避）
+      // 既に「<佐藤誠一吹き出し>」が含まれているブロックはスキップ
+      const blocksToProcess = data.h2Blocks.filter((block: any) => {
+        if (!block.writtenContent || block.writtenContent.trim().length === 0) {
+          return false;
+        }
+        // 「導入文」「ディスクリプション」「まとめ」には監修者の吹き出しを書かない
+        const h2Title = block.h2Title || '';
+        const isIntroBlock = h2Title.includes('導入') || h2Title.includes('導入文');
+        const isDescriptionBlock = h2Title.includes('ディスクリプション') || h2Title.includes('description');
+        const isSummaryBlock = h2Title.includes('まとめ');
+        if (isIntroBlock || isDescriptionBlock || isSummaryBlock) {
+          return false;
+        }
+        // 既に監修者の吹き出しが含まれている場合はスキップ
+        const hasSupervisorComment = block.writtenContent.includes('<佐藤誠一吹き出し>');
+        return !hasSupervisorComment;
+      });
+      
+      console.log(`[Supervisor Comments] Found ${blocksToProcess.length} blocks to process (excluding already processed blocks)`);
+      
+      if (blocksToProcess.length === 0) {
+        console.log(`[Supervisor Comments] No blocks to process (all blocks already have supervisor comments or are excluded).`);
+        return NextResponse.json({ 
+          h2BlocksWithComments: {},
+          message: 'すべてのブロックに既に監修者の吹き出しが追加されています。',
+        });
+      }
+      
+      const maxBlocksPerRequest = 1; // 1リクエストあたり1ブロックのみ処理（タイムアウト回避）
+      const limitedBlocks = blocksToProcess.slice(0, maxBlocksPerRequest);
+      
+      console.log(`[Supervisor Comments] Processing block: ${limitedBlocks[0]?.id}`);
+      
+      if (blocksToProcess.length > maxBlocksPerRequest) {
+        console.warn(`Processing only first ${maxBlocksPerRequest} block out of ${blocksToProcess.length} to avoid timeout. Remaining blocks will need to be processed separately.`);
+      }
+      
       try {
-        for (const block of data.h2Blocks) {
+        for (const block of limitedBlocks) {
           // 「導入文」「ディスクリプション」「まとめ」には監修者の吹き出しを書かない
           const h2Title = block.h2Title || '';
           const isIntroBlock = h2Title.includes('導入') || h2Title.includes('導入文');
@@ -24,13 +67,12 @@ export async function POST(request: NextRequest) {
             continue;
           }
           
-          if (!block.writtenContent || block.writtenContent.trim().length === 0) {
-            // 執筆内容がない場合はスキップ
-            results[block.id] = block.writtenContent || '';
-            continue;
-          }
-
-          const blockArticle = `${block.writtenContent || ''}`;
+          // 記事内容が長すぎる場合は先頭2000文字に制限（タイムアウト対策）
+          const contentToProcess = block.writtenContent && block.writtenContent.length > 2000 
+            ? block.writtenContent.substring(0, 2000) + '\n\n（...以下省略）'
+            : block.writtenContent || '';
+          
+          const blockArticle = `${contentToProcess}`;
           
           // プロンプトを取得
           let fullPrompt;
@@ -81,9 +123,11 @@ export async function POST(request: NextRequest) {
           
           let result;
           try {
-            result = await callGemini(fullPrompt, 'gemini-3-pro-preview');
+            // タイムアウトを55秒に設定（Vercelの60秒制限を考慮）
+            result = await callGemini(fullPrompt, 'gemini-3-pro-preview', undefined, 55000);
             console.log(`[Supervisor Comments] Block ${block.id} - Raw API response length: ${result?.length || 0}`);
-            console.log(`[Supervisor Comments] Block ${block.id} - Raw API response (first 500 chars):`, result?.substring(0, 500));
+            console.log(`[Supervisor Comments] Block ${block.id} - Raw API response (first 2000 chars):`, result?.substring(0, 2000));
+            console.log(`[Supervisor Comments] Block ${block.id} - Raw API response contains "<佐藤誠一吹き出し>": ${result?.includes('<佐藤誠一吹き出し>') || false}`);
           } catch (geminiError: any) {
             console.error(`Gemini API error for block ${block.id}:`, geminiError);
             throw new Error(`Gemini API呼び出しに失敗しました: ${geminiError.message || '不明なエラー'}`);
