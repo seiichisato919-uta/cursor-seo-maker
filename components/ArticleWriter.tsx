@@ -900,15 +900,15 @@ export default function ArticleWriter({ articleData, onSaveArticle }: ArticleWri
         setIntro(data.intro);
       }
       
-      // 2. セールス文を「※ここにセールス文を挿入」の箇所に挿入（既存の文章は改変しない）
+      // 2. セールス文を「※ここにセールス文を書く」の箇所に挿入（既存の文章は改変しない）
       if (data.sales && Array.isArray(data.sales)) {
         setH2Blocks(prevBlocks =>
           prevBlocks.map(block => {
             const salesData = data.sales.find((s: any) => s.blockId === block.id);
-            if (salesData && block.writtenContent.includes('※ここにセールス文を挿入')) {
-              // 「※ここにセールス文を挿入」をセールス文に置き換える（既存の文章は保持）
+            if (salesData && block.writtenContent.includes('※ここにセールス文を書く')) {
+              // 「※ここにセールス文を書く」をセールス文に置き換える（既存の文章は保持）
               // salesData.contentにはセールス文の内容のみが含まれているはず
-              const updatedContent = block.writtenContent.replace(/※ここにセールス文を挿入/g, salesData.content.trim());
+              const updatedContent = block.writtenContent.replace(/※ここにセールス文を書く/g, salesData.content.trim());
               return { ...block, writtenContent: updatedContent };
             }
             return block;
