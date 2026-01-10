@@ -600,9 +600,11 @@ export default function ArticleWriter({ articleData, onSaveArticle }: ArticleWri
   // 内部リンクを提案してもらう
   const handleGenerateInternalLinks = useCallback(async () => {
     setInternalLinkLoading(true);
+    console.log('[Internal Links] Starting internal link generation...');
     try {
       // 執筆内容があるH2ブロックのみを送信
       const blocksWithContent = h2Blocks.filter(block => block.writtenContent && block.writtenContent.trim().length > 0);
+      console.log(`[Internal Links] Found ${blocksWithContent.length} blocks with content`);
       
       if (blocksWithContent.length === 0) {
         alert('執筆内容がありません。まず記事を執筆してください。');
@@ -610,6 +612,7 @@ export default function ArticleWriter({ articleData, onSaveArticle }: ArticleWri
         return;
       }
 
+      console.log('[Internal Links] Sending request to API...');
       const response = await fetch('/api/generate-internal-links', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -632,6 +635,13 @@ export default function ArticleWriter({ articleData, onSaveArticle }: ArticleWri
       }
 
       const data = await response.json();
+      console.log('[Internal Links] Received API response:', {
+        ok: response.ok,
+        status: response.status,
+        hasH2BlocksWithLinks: !!data.h2BlocksWithLinks,
+        h2BlocksWithLinksKeys: data.h2BlocksWithLinks ? Object.keys(data.h2BlocksWithLinks) : [],
+        dataKeys: Object.keys(data),
+      });
       
       if (!response.ok) {
         throw new Error(data.error || `内部リンクの生成に失敗しました（ステータス: ${response.status}）`);
