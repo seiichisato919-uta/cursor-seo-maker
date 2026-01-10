@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { callGemini } from '@/lib/gemini';
 import { getSalesLocationPrompt } from '@/lib/prompts';
 
+// Vercelの関数タイムアウト設定
+// Proプランでは60秒まで可能
+export const maxDuration = 60;
+
 export async function POST(request: NextRequest) {
   try {
     const data = await request.json();
@@ -17,7 +21,12 @@ export async function POST(request: NextRequest) {
             continue;
           }
 
-          const blockArticle = `${block.writtenContent || ''}`;
+          // 記事内容が長すぎる場合は先頭2000文字に制限（タイムアウト対策）
+          const contentToProcess = block.writtenContent && block.writtenContent.length > 2000 
+            ? block.writtenContent.substring(0, 2000) + '\n\n（...以下省略）'
+            : block.writtenContent || '';
+          
+          const blockArticle = `${contentToProcess}`;
           
           // プロンプトを取得
           let fullPrompt;
@@ -58,9 +67,11 @@ export async function POST(request: NextRequest) {
           
           let result;
           try {
-            result = await callGemini(fullPrompt, 'gemini-3-pro-preview');
+            // タイムアウトを55秒に設定（Vercelの60秒制限を考慮）
+            result = await callGemini(fullPrompt, 'gemini-3-pro-preview', undefined, 55000);
             console.log(`[Sales Locations] Block ${block.id} - Raw API response length: ${result?.length || 0}`);
-            console.log(`[Sales Locations] Block ${block.id} - Raw API response (first 500 chars):`, result?.substring(0, 500));
+            console.log(`[Sales Locations] Block ${block.id} - Raw API response (first 2000 chars):`, result?.substring(0, 2000));
+            console.log(`[Sales Locations] Block ${block.id} - Raw API response contains "※ここにセールス文を挿入": ${result?.includes('※ここにセールス文を挿入') || false}`);
           } catch (geminiError: any) {
             console.error(`Gemini API error for block ${block.id}:`, geminiError);
             throw new Error(`Gemini API呼び出しに失敗しました: ${geminiError.message || '不明なエラー'}`);
@@ -187,16 +198,25 @@ export async function POST(request: NextRequest) {
               }
             }
             
-            if (!allOriginalLinesPreserved) {
+            // 「※ここにセールス文を挿入」が含まれている場合は、必ずAPIレスポンスを返す
+            const finalResult = cleanedResult.trim();
+            const hasSalesMarkerInFinal = finalResult.includes('※ここにセールス文を挿入');
+            
+            console.log(`[Sales Locations] Block ${block.id} - Final result length: ${finalResult.length}`);
+            console.log(`[Sales Locations] Block ${block.id} - Final result contains "※ここにセールス文を挿入": ${hasSalesMarkerInFinal}`);
+            
+            if (hasSalesMarkerInFinal) {
+              // 「※ここにセールス文を挿入」が含まれている場合は、APIレスポンスを返す
+              console.log(`[Sales Locations] Block ${block.id} - Returning API response with sales marker`);
+              results[block.id] = finalResult;
+            } else if (!allOriginalLinesPreserved) {
               console.warn(`[Sales Locations] Block ${block.id} - Some original content may have been modified. Using original content.`);
               // 既存の内容が変更されている可能性がある場合は、既存の内容をそのまま返す
               results[block.id] = block.writtenContent;
             } else {
-              const finalResult = cleanedResult.trim();
-              console.log(`[Sales Locations] Block ${block.id} - Final result length: ${finalResult.length}`);
-              console.log(`[Sales Locations] Block ${block.id} - Final result contains "※ここにセールス文を挿入": ${finalResult.includes('※ここにセールス文を挿入')}`);
-              console.log(`[Sales Locations] Block ${block.id} - Original content preserved: ${allOriginalLinesPreserved}`);
-              results[block.id] = finalResult;
+              // 「※ここにセールス文を挿入」が含まれていない場合は、元の内容を返す
+              console.warn(`[Sales Locations] Block ${block.id} - No sales marker found in result. Returning original content.`);
+              results[block.id] = block.writtenContent;
             }
           }
         }
@@ -228,7 +248,8 @@ export async function POST(request: NextRequest) {
       articleTopic: data.articleTopic,
     });
     
-    const result = await callGemini(fullPrompt, 'gemini-3-pro-preview');
+    // タイムアウトを55秒に設定（Vercelの60秒制限を考慮）
+    const result = await callGemini(fullPrompt, 'gemini-3-pro-preview', undefined, 55000);
     
     return NextResponse.json({ salesLocations: result });
   } catch (error: any) {
