@@ -311,39 +311,14 @@ export function getInternalLinkPrompt(data: { article: string; spreadsheetData?:
   
   let spreadsheetSection = '';
   if (data.spreadsheetData) {
-    // 記事一覧を記事内容に関連するものだけに絞る（プロンプトを短縮）
-    let relevantArticles = Array.isArray(data.spreadsheetData) ? data.spreadsheetData : [];
-    
-    // 記事内容からキーワードを抽出して関連記事を絞り込む
-    if (data.article && relevantArticles.length > 50) {
-      const articleText = data.article.toLowerCase();
-      const articleKeywords = articleText.split(/\s+/).filter((word: string) => word.length > 3);
-      
-      // 記事タイトルにキーワードが含まれる記事を優先的に選ぶ
-      relevantArticles = relevantArticles
-        .map((item: any) => {
-          const titleLower = item.title.toLowerCase();
-          const matchScore = articleKeywords.reduce((score: number, keyword: string) => {
-            return score + (titleLower.includes(keyword) ? 1 : 0);
-          }, 0);
-          return { ...item, matchScore };
-        })
-        .sort((a: any, b: any) => b.matchScore - a.matchScore)
-        .slice(0, 50) // 最大50件に制限
-        .map((item: any) => ({ title: item.title, url: item.url })); // matchScoreを削除
-    } else if (relevantArticles.length > 50) {
-      // キーワード抽出ができない場合は、最初の50件だけを使用
-      relevantArticles = relevantArticles.slice(0, 50);
-    }
-    
-    // 記事一覧を簡潔な形式に変換
-    const articleList = relevantArticles
-      .map((item: any) => `${item.title} (${item.url})`)
-      .join('\n');
+    // 記事一覧を簡潔な形式に変換（全件を送信）
+    const articleList = Array.isArray(data.spreadsheetData) 
+      ? data.spreadsheetData.map((item: any) => `${item.title} (${item.url})`).join('\n')
+      : JSON.stringify(data.spreadsheetData, null, 2);
     
     spreadsheetSection = `
 
-## ナレッジ: 「Webライターの学校」記事一覧（関連記事のみ）
+## ナレッジ: 「Webライターの学校」記事一覧
 以下の記事一覧から、記事内容に関連する記事を選んで内部リンクを挿入してください（形式: 記事タイトル (URL)）：
 
 ${articleList}`;

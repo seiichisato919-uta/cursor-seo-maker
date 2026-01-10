@@ -62,7 +62,7 @@ export async function getArticleList(): Promise<Array<{ title: string; url: stri
     // A列（タイトル）とB列（URL）を取得
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId,
-      range: 'A2:B1000', // A1はヘッダーなので、A2から開始（最大1000行まで）
+      range: 'A2:B100', // A1はヘッダーなので、A2から開始（最大100行まで）
     });
     
     const rows = response.data.values || [];
