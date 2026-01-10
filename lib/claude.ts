@@ -32,8 +32,15 @@ export async function callClaude(prompt: string, model: string = 'claude-sonnet-
       return content.text;
     }
     throw new Error('Unexpected response type from Claude');
-  } catch (error) {
+  } catch (error: any) {
     console.error('Claude API Error:', error);
+    
+    // 認証エラーの場合、より分かりやすいエラーメッセージを返す
+    if (error.status === 401 || error.message?.includes('authentication_error') || error.message?.includes('invalid x-api-key')) {
+      throw new Error('Claude APIの認証に失敗しました。ANTHROPIC_API_KEY環境変数が正しく設定されているか確認してください。');
+    }
+    
+    // その他のエラーはそのままスロー
     throw error;
   }
 }
