@@ -603,11 +603,19 @@ export default function ArticleWriter({ articleData, onSaveArticle }: ArticleWri
     console.log('[Internal Links] Starting internal link generation...');
     try {
       // 執筆内容があるH2ブロックのみを送信
-      const blocksWithContent = h2Blocks.filter(block => block.writtenContent && block.writtenContent.trim().length > 0);
-      console.log(`[Internal Links] Found ${blocksWithContent.length} blocks with content`);
+      // 既に内部リンクが含まれているブロックはスキップ
+      const blocksWithContent = h2Blocks.filter(block => {
+        if (!block.writtenContent || block.writtenContent.trim().length === 0) {
+          return false;
+        }
+        // 既に内部リンクが含まれている場合はスキップ
+        const hasInternalLink = block.writtenContent.includes('参考記事：') || block.writtenContent.includes('参考記事:');
+        return !hasInternalLink;
+      });
+      console.log(`[Internal Links] Found ${blocksWithContent.length} blocks with content (excluding already processed blocks)`);
       
       if (blocksWithContent.length === 0) {
-        alert('執筆内容がありません。まず記事を執筆してください。');
+        alert('すべてのブロックに内部リンクが追加済みです。または、執筆内容がありません。');
         setInternalLinkLoading(false);
         return;
       }
