@@ -374,8 +374,8 @@ export async function POST(request: NextRequest) {
     
     let result;
     try {
-      // タイムアウトを8秒に設定（Vercelの10秒制限を考慮）
-      result = await callGemini(fullPrompt, 'gemini-3-pro-preview', undefined, 8000);
+      // タイムアウトを55秒に設定（Vercelの60秒制限を考慮）
+      result = await callGemini(fullPrompt, 'gemini-3-pro-preview', undefined, 55000);
     } catch (geminiError: any) {
       console.error('Gemini API error:', geminiError);
       // タイムアウトエラーの場合は、より詳細なエラーメッセージを返す
