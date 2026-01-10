@@ -155,10 +155,16 @@ export default function ArticleWriter({ articleData, onSaveArticle }: ArticleWri
   // H2ブロックが変更されたときに自動保存（debounce付き）
   useEffect(() => {
     // currentArticleIdを使用（確実に設定されている）
-    const articleId = currentArticleId;
+    const articleId = currentArticleId || articleData?.articleId;
     
     // h2Blocksが空で、titleもない場合は保存しない
     if (h2Blocks.length === 0 && !title) return;
+    
+    // articleIdが設定されていない場合は保存しない
+    if (!articleId) {
+      console.warn('[Auto-save] ArticleId not set, skipping save');
+      return;
+    }
     
     const timeoutId = setTimeout(() => {
       try {
@@ -185,15 +191,17 @@ export default function ArticleWriter({ articleData, onSaveArticle }: ArticleWri
         const saveKey = `seo-article-data-${articleId}`;
         localStorage.setItem(saveKey, JSON.stringify(dataToSave));
         
-        // デバッグログ（開発時のみ）
-        if (process.env.NODE_ENV === 'development') {
-          console.log(`[Auto-save] Saved h2Blocks (${blocksWithContent.length} blocks with content) to ${saveKey}`);
-          if (blocksWithContent.length > 0) {
-            console.log(`[Auto-save] Sample writtenContent length:`, blocksWithContent[0].writtenContent.length);
-          }
+        // デバッグログ（常に表示）
+        console.log(`[Auto-save] Saved h2Blocks (${blocksWithContent.length} blocks with content) to ${saveKey}`);
+        if (blocksWithContent.length > 0) {
+          console.log(`[Auto-save] Sample writtenContent length:`, blocksWithContent[0].writtenContent.length);
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error('Error auto-saving h2Blocks:', error);
+        // localStorageの容量制限エラーの場合
+        if (error.name === 'QuotaExceededError' || error.message?.includes('quota')) {
+          alert('保存領域が不足しています。古い記事を削除してください。');
+        }
       }
     }, 1000); // 1秒後に保存
 
