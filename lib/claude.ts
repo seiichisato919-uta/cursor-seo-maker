@@ -5,9 +5,25 @@ let anthropic: Anthropic | null = null;
 export function getClaudeClient() {
   if (!anthropic) {
     const apiKey = process.env.ANTHROPIC_API_KEY;
+    console.log('[Claude] ===== Client Initialization =====');
     console.log('[Claude] ANTHROPIC_API_KEY exists:', !!apiKey);
     console.log('[Claude] ANTHROPIC_API_KEY length:', apiKey?.length || 0);
     console.log('[Claude] ANTHROPIC_API_KEY starts with sk-ant:', apiKey?.startsWith('sk-ant-') || false);
+    console.log('[Claude] ANTHROPIC_API_KEY first 20 chars:', apiKey?.substring(0, 20) || 'N/A');
+    console.log('[Claude] ANTHROPIC_API_KEY last 10 chars:', apiKey?.substring(apiKey.length - 10) || 'N/A');
+    
+    // APIキーに余分なスペースや改行が含まれていないか確認
+    if (apiKey) {
+      const trimmed = apiKey.trim();
+      if (trimmed !== apiKey) {
+        console.warn('[Claude] WARNING: API key has leading/trailing whitespace!');
+        console.warn('[Claude] Original length:', apiKey.length);
+        console.warn('[Claude] Trimmed length:', trimmed.length);
+      }
+      if (apiKey.includes('\n') || apiKey.includes('\r')) {
+        console.warn('[Claude] WARNING: API key contains newline characters!');
+      }
+    }
     
     if (!apiKey) {
       throw new Error('ANTHROPIC_API_KEY is not set');
@@ -17,7 +33,11 @@ export function getClaudeClient() {
       console.warn('[Claude] ANTHROPIC_API_KEY format may be incorrect. Expected format: sk-ant-...');
     }
     
-    anthropic = new Anthropic({ apiKey });
+    // トリムしたAPIキーを使用（余分なスペースを削除）
+    const cleanApiKey = apiKey.trim();
+    console.log('[Claude] Using cleaned API key, length:', cleanApiKey.length);
+    
+    anthropic = new Anthropic({ apiKey: cleanApiKey });
   }
   return anthropic;
 }
