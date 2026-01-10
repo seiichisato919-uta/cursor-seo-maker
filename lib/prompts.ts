@@ -301,15 +301,25 @@ export function getInternalLinkPrompt(data: { article: string; spreadsheetData?:
     return `内部リンクを提案してください。`;
   }
   
-  // プロンプトから不要なセクションのみを削除（重要な指示は残す）
-  // 「応答開始時のテンプレート」セクションを削除（分析結果メッセージは不要）
+  // プロンプトから不要なセクションを大幅に削除（タイムアウト対策）
+  // 「応答開始時のテンプレート」セクションを削除
   basePrompt = basePrompt.replace(/## 応答開始時のテンプレート[\s\S]*?\[ここから実際の出力を開始\]/g, '');
-  // 「継続的改善のためのフィードバック要請」セクションを削除（対話形式は不要）
+  // 「継続的改善のためのフィードバック要請」セクションを削除
   basePrompt = basePrompt.replace(/## 継続的改善のためのフィードバック要請[\s\S]*?削除すべきリンク提案はありますか\?/g, '');
-  // 「実行コマンド」セクションを削除（対話形式は不要）
+  // 「実行コマンド」セクションを削除
   basePrompt = basePrompt.replace(/## 実行コマンド[\s\S]*?このプロンプトに従って分析と提案を開始してください。[\s\S]*?$/g, '');
-  // 「エラーハンドリング」セクションを削除（エラーメッセージは不要）
+  // 「エラーハンドリング」セクションを削除
   basePrompt = basePrompt.replace(/## エラーハンドリング[\s\S]*?記事が添付されていません。[\s\S]*?---/g, '');
+  // 「処理フロー」セクションを削除（詳細な説明は不要）
+  basePrompt = basePrompt.replace(/## 処理フロー[\s\S]*?---/g, '');
+  // 「内部リンク選定の判断基準」セクションを削除（詳細な説明は不要）
+  basePrompt = basePrompt.replace(/## 内部リンク選定の判断基準[\s\S]*?---/g, '');
+  // 「実行時の注意事項」セクションを削除（詳細な説明は不要）
+  basePrompt = basePrompt.replace(/## 実行時の注意事項[\s\S]*?---/g, '');
+  // 「出力フォーマット」セクションを簡潔化（詳細な説明は不要）
+  basePrompt = basePrompt.replace(/## 出力フォーマット[\s\S]*?---/g, '');
+  // 「重要な出力ルール」セクションを簡潔化
+  basePrompt = basePrompt.replace(/## 重要な出力ルール[\s\S]*?---/g, '');
   
   let spreadsheetSection = '';
   if (data.spreadsheetData) {
@@ -326,9 +336,9 @@ export function getInternalLinkPrompt(data: { article: string; spreadsheetData?:
 ${articleList}`;
   }
   
-  // 記事内容が長すぎる場合は先頭3000文字に制限（タイムアウト対策）
-  const articleToProcess = data.article && data.article.length > 3000 
-    ? data.article.substring(0, 3000) + '\n\n（...以下省略）'
+  // 記事内容が長すぎる場合は先頭2000文字に制限（タイムアウト対策）
+  const articleToProcess = data.article && data.article.length > 2000 
+    ? data.article.substring(0, 2000) + '\n\n（...以下省略）'
     : data.article;
   
   return `${basePrompt}${spreadsheetSection}

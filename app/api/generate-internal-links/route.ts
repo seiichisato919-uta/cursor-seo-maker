@@ -136,9 +136,9 @@ export async function POST(request: NextRequest) {
       
       try {
         for (const block of limitedBlocks) {
-          // 記事内容が長すぎる場合は先頭3000文字に制限（タイムアウト対策）
-          const contentToProcess = block.writtenContent && block.writtenContent.length > 3000 
-            ? block.writtenContent.substring(0, 3000) + '\n\n（...以下省略）'
+          // 記事内容が長すぎる場合は先頭2000文字に制限（タイムアウト対策）
+          const contentToProcess = block.writtenContent && block.writtenContent.length > 2000 
+            ? block.writtenContent.substring(0, 2000) + '\n\n（...以下省略）'
             : block.writtenContent || '';
           
           const blockArticle = `## ${block.h2Title}\n${block.h3s?.map((h3: any) => `### ${h3.title}`).join('\n') || ''}\n\n${contentToProcess}`;
