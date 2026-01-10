@@ -7,7 +7,7 @@ import { join } from 'path';
 
 // Vercelの関数タイムアウト設定
 // 無料プランでは10秒が上限、Proプランでは60秒まで可能
-export const maxDuration = 10;
+export const maxDuration = 60;
 
 /**
  * 記事一覧データを読み込む（フォールバック用）
@@ -200,8 +200,8 @@ export async function POST(request: NextRequest) {
           
           let result;
           try {
-            // タイムアウトを8秒に設定（Vercelの10秒制限を考慮）
-            result = await callGemini(fullPrompt, 'gemini-3-pro-preview', undefined, 8000);
+            // タイムアウトを55秒に設定（Vercelの60秒制限を考慮）
+            result = await callGemini(fullPrompt, 'gemini-3-pro-preview', undefined, 55000);
             console.log(`[Internal Links] Block ${block.id} - Raw API response length: ${result?.length || 0}`);
             console.log(`[Internal Links] Block ${block.id} - Raw API response (first 500 chars):`, result?.substring(0, 500));
           } catch (geminiError: any) {
@@ -416,8 +416,8 @@ export async function POST(request: NextRequest) {
     
     let result;
     try {
-      // タイムアウトを8秒に設定（Vercelの10秒制限を考慮）
-      result = await callGemini(fullPrompt, 'gemini-3-pro-preview', undefined, 8000);
+      // タイムアウトを55秒に設定（Vercelの60秒制限を考慮）
+      result = await callGemini(fullPrompt, 'gemini-3-pro-preview', undefined, 55000);
     } catch (geminiError: any) {
       console.error('Gemini API error:', geminiError);
       // タイムアウトエラーの場合は、より詳細なエラーメッセージを返す
