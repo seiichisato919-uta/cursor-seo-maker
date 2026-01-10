@@ -232,8 +232,15 @@ export async function POST(request: NextRequest) {
             
             console.log(`[Sales Locations] Block ${block.id} - Final result length: ${finalResult.length}`);
             console.log(`[Sales Locations] Block ${block.id} - Final result contains "※ここにセールス文を書く": ${hasSalesMarkerInFinal}`);
+            console.log(`[Sales Locations] Block ${block.id} - Current total markers: ${currentTotalMarkers}, Should insert: ${shouldInsertMarker}`);
             
-            if (hasSalesMarkerInFinal) {
+            // 記事全体で既に2箇所以上ある場合は、マーカーを追加しない（既存の内容をそのまま返す）
+            if (currentTotalMarkers >= 2 && hasSalesMarkerInFinal) {
+              console.log(`[Sales Locations] Block ${block.id} - Already have 2+ markers, removing marker from result`);
+              // 「※ここにセールス文を書く」を削除して、既存の内容のみを返す
+              const resultWithoutMarker = finalResult.replace(/※ここにセールス文を書く\n?/g, '').trim();
+              results[block.id] = resultWithoutMarker || block.writtenContent;
+            } else if (hasSalesMarkerInFinal) {
               // 「※ここにセールス文を書く」が含まれている場合は、APIレスポンスを返す
               console.log(`[Sales Locations] Block ${block.id} - Returning API response with sales marker`);
               results[block.id] = finalResult;
@@ -243,7 +250,7 @@ export async function POST(request: NextRequest) {
               results[block.id] = block.writtenContent;
             } else {
               // 「※ここにセールス文を書く」が含まれていない場合は、元の内容を返す
-              console.warn(`[Sales Locations] Block ${block.id} - No sales marker found in result. Returning original content.`);
+              console.log(`[Sales Locations] Block ${block.id} - No sales marker found in result. Returning original content (this is OK if not needed).`);
               results[block.id] = block.writtenContent;
             }
           }
