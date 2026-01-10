@@ -643,13 +643,25 @@ export default function ArticleWriter({ articleData, onSaveArticle }: ArticleWri
 
       // H2ブロックごとに内部リンクが挿入された内容を取得
       if (data.h2BlocksWithLinks) {
+        // デバッグログを追加
+        console.log('[Internal Links] Received h2BlocksWithLinks:', data.h2BlocksWithLinks);
+        Object.keys(data.h2BlocksWithLinks).forEach(blockId => {
+          const content = data.h2BlocksWithLinks[blockId];
+          const hasInternalLink = content.includes('参考記事：') || content.includes('参考記事:');
+          console.log(`[Internal Links] Block ${blockId} - Content length: ${content.length}`);
+          console.log(`[Internal Links] Block ${blockId} - Has internal link: ${hasInternalLink}`);
+          console.log(`[Internal Links] Block ${blockId} - Content preview (first 500 chars):`, content.substring(0, 500));
+        });
+        
         // 各H2ブロックの執筆内容を更新
         setH2Blocks(prevBlocks =>
           prevBlocks.map(block => {
             const updatedContent = data.h2BlocksWithLinks[block.id];
             if (updatedContent) {
+              console.log(`[Internal Links] Updating block ${block.id} with new content`);
               return { ...block, writtenContent: updatedContent };
             }
+            console.log(`[Internal Links] Block ${block.id} - No updated content found`);
             return block;
           })
         );

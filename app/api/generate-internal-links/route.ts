@@ -157,6 +157,11 @@ export async function POST(request: NextRequest) {
           
           // プロンプトに既に出力形式の指示が含まれているので、追加の指示は不要
           
+          // デバッグログ：プロンプトの長さと内容の一部を確認
+          console.log(`[Internal Links] Block ${block.id} - Prompt length: ${fullPrompt.length}`);
+          console.log(`[Internal Links] Block ${block.id} - Prompt preview (last 1000 chars):`, fullPrompt.substring(Math.max(0, fullPrompt.length - 1000)));
+          console.log(`[Internal Links] Block ${block.id} - Article content length: ${blockArticle.length}`);
+          
           let result;
           try {
             // タイムアウトを8秒に設定（Vercelの10秒制限を考慮）
@@ -315,6 +320,16 @@ export async function POST(request: NextRequest) {
           { status: 500 }
         );
       }
+      
+      // デバッグログを追加
+      console.log(`[Internal Links] Returning results for ${Object.keys(results).length} blocks`);
+      Object.keys(results).forEach(blockId => {
+        const content = results[blockId];
+        const hasInternalLink = content.includes('参考記事：') || content.includes('参考記事:');
+        console.log(`[Internal Links] Block ${blockId} - Final result has internal link: ${hasInternalLink}`);
+        console.log(`[Internal Links] Block ${blockId} - Final result length: ${content.length}`);
+        console.log(`[Internal Links] Block ${blockId} - Final result preview (first 500 chars):`, content.substring(0, 500));
+      });
       
       return NextResponse.json({ 
         h2BlocksWithLinks: results,
