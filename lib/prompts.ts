@@ -311,15 +311,40 @@ export function getInternalLinkPrompt(data: { article: string; spreadsheetData?:
   
   let spreadsheetSection = '';
   if (data.spreadsheetData) {
-    // 記事一覧を簡潔な形式に変換（プロンプトを短縮）
-    const articleList = Array.isArray(data.spreadsheetData) 
-      ? data.spreadsheetData.map((item: any) => `${item.title} (${item.url})`).join('\n')
-      : JSON.stringify(data.spreadsheetData, null, 2);
+    // 記事一覧を記事内容に関連するものだけに絞る（プロンプトを短縮）
+    let relevantArticles = Array.isArray(data.spreadsheetData) ? data.spreadsheetData : [];
+    
+    // 記事内容からキーワードを抽出して関連記事を絞り込む
+    if (data.article && relevantArticles.length > 50) {
+      const articleText = data.article.toLowerCase();
+      const articleKeywords = articleText.split(/\s+/).filter((word: string) => word.length > 3);
+      
+      // 記事タイトルにキーワードが含まれる記事を優先的に選ぶ
+      relevantArticles = relevantArticles
+        .map((item: any) => {
+          const titleLower = item.title.toLowerCase();
+          const matchScore = articleKeywords.reduce((score: number, keyword: string) => {
+            return score + (titleLower.includes(keyword) ? 1 : 0);
+          }, 0);
+          return { ...item, matchScore };
+        })
+        .sort((a: any, b: any) => b.matchScore - a.matchScore)
+        .slice(0, 50) // 最大50件に制限
+        .map((item: any) => ({ title: item.title, url: item.url })); // matchScoreを削除
+    } else if (relevantArticles.length > 50) {
+      // キーワード抽出ができない場合は、最初の50件だけを使用
+      relevantArticles = relevantArticles.slice(0, 50);
+    }
+    
+    // 記事一覧を簡潔な形式に変換
+    const articleList = relevantArticles
+      .map((item: any) => `${item.title} (${item.url})`)
+      .join('\n');
     
     spreadsheetSection = `
 
-## ナレッジ: 「Webライターの学校」記事一覧
-以下の記事一覧を参照し、適切な内部リンクを提案してください（形式: 記事タイトル (URL)）：
+## ナレッジ: 「Webライターの学校」記事一覧（関連記事のみ）
+以下の記事一覧から、記事内容に関連する記事を選んで内部リンクを挿入してください（形式: 記事タイトル (URL)）：
 
 ${articleList}`;
   }
@@ -329,40 +354,10 @@ ${articleList}`;
 記事内容:
 ${data.article}
 
-## ⚠️【超重要】内部リンクの挿入形式⚠️
-- **既存の記事内容を一字一句そのまま保持してください**
-- **既存の記事内容を削除したり、変更したり、要約したりしてはいけません**
-- **既存の記事内容をそのまま出力し、適切な箇所に内部リンクを挿入してください**
-- **既存の文章を全て残したまま、内部リンクだけを追加してください**
-- **既存の文章を削除したり、変更したり、要約したりしてはいけません**
-- **既存の文章を一字一句そのまま保持し、適切な箇所に内部リンクを挿入してください**
-
-## ⚠️【超重要】内部リンクの設置基準⚠️
-- **1つのH2ブロック（見出しセクション）内に、関連する記事が複数ある場合は、2〜3個の内部リンクを挿入してください**
-- **1つのH2ブロック内に、関連する記事が1つしかない場合でも、そのブロック内の異なる箇所に複数の内部リンクを挿入できる場合は、複数挿入してください**
-- **記事の内容を詳しく読み、記事一覧から関連する記事を積極的に選んでください**
-- **記事の各セクション・段落を分析し、関連する記事が複数ある場合は、複数の箇所に内部リンクを挿入してください**
-- **記事の内容と記事一覧の記事タイトル・内容を照らし合わせ、関連性の高い記事を選んでください**
-- **専門用語や概念の初出時に、その詳細解説記事がある場合は内部リンクを挿入してください**
-- **「〜の方法」「〜のやり方」等、具体的な手順を示唆する箇所に内部リンクを挿入してください**
-- **ツールやサービスの言及時に、そのレビュー・解説記事がある場合は内部リンクを挿入してください**
-- **関連トピックへの言及があり、読者が興味を持ちそうな場合に内部リンクを挿入してください**
-- **「詳しくは〜」「詳細は〜」等の補足を示唆する表現がある箇所に内部リンクを挿入してください**
-- **必ず1つ以上の内部リンクを挿入してください（可能な限り複数の内部リンクを挿入してください）**
-- **内部リンクを1つも挿入しない場合は、出力として不適切です**
-- **内部リンクの数が少なすぎる場合も、出力として不適切です**
-- **1つのH2ブロック内に、関連する記事が複数ある場合は、最低でも2個以上の内部リンクを挿入してください**
-- 内部リンクは必ず「参考記事:」で始めてください
-- 形式：「参考記事:記事タイトル(URL)」（記事タイトルは[]で囲まない）
-- 例：「参考記事:Webライターとは? 8年経験者が解説!(https://example.com/article)」
-- **スプレッドシートの記事一覧から、記事内容に関連する記事を選んで内部リンクとして挿入してください**
-- **分析結果や提案メッセージは一切出力しないでください**
-- **「記事を分析し、内部リンクの挿入箇所を提案します」などのメッセージは出力しないでください**
-- **「【分析結果】」「【内部リンク挿入提案】」などの見出しは出力しないでください**
-- **「提案内容は適切でしたか?」などの質問は出力しないでください**
-- **「---」などの区切り線も出力しないでください**
-- **既存の記事内容に内部リンクを挿入した結果のみを出力してください**
-- **出力は既存の記事内容（内部リンク挿入済み）のみで、それ以外は一切出力しないでください**`;
+## 出力形式
+- 既存の記事内容を一字一句そのまま保持し、適切な箇所に「参考記事:記事タイトル(URL)」形式で内部リンクを挿入
+- 見出しは出力せず、本文のみを出力
+- 分析結果やメッセージは一切出力しない`;
 }
 
 /**
