@@ -14,8 +14,18 @@ export async function POST(request: NextRequest) {
     if (data.h2Blocks && Array.isArray(data.h2Blocks)) {
       const results: { [key: string]: string } = {};
       
+      // 処理するブロック数を制限（タイムアウト対策）
+      // 1リクエストあたり1ブロックのみ処理（タイムアウト回避）
+      const blocksToProcess = data.h2Blocks.filter((block: any) => block.writtenContent && block.writtenContent.trim().length > 0);
+      const maxBlocksPerRequest = 1; // 1リクエストあたり1ブロックのみ処理（タイムアウト回避）
+      const limitedBlocks = blocksToProcess.slice(0, maxBlocksPerRequest);
+      
+      if (blocksToProcess.length > maxBlocksPerRequest) {
+        console.warn(`Processing only first ${maxBlocksPerRequest} block out of ${blocksToProcess.length} to avoid timeout. Remaining blocks will need to be processed separately.`);
+      }
+      
       try {
-        for (const block of data.h2Blocks) {
+        for (const block of limitedBlocks) {
           if (!block.writtenContent || block.writtenContent.trim().length === 0) {
             // 執筆内容がない場合はスキップ
             continue;

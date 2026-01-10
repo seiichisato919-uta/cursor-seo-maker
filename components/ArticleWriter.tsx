@@ -781,10 +781,19 @@ export default function ArticleWriter({ articleData, onSaveArticle }: ArticleWri
     setSalesLocationLoading(true);
     try {
       // 執筆内容があるH2ブロックのみを送信
-      const blocksWithContent = h2Blocks.filter(block => block.writtenContent && block.writtenContent.trim().length > 0);
+      // 既に「※ここにセールス文を書く」が含まれているブロックはスキップ
+      const blocksWithContent = h2Blocks.filter(block => {
+        if (!block.writtenContent || block.writtenContent.trim().length === 0) {
+          return false;
+        }
+        // 既にセールスマーカーが含まれている場合はスキップ
+        const hasSalesMarker = block.writtenContent.includes('※ここにセールス文を書く');
+        return !hasSalesMarker;
+      });
+      console.log(`[Sales Locations] Found ${blocksWithContent.length} blocks with content (excluding already processed blocks)`);
       
       if (blocksWithContent.length === 0) {
-        alert('執筆内容がありません。まず記事を執筆してください。');
+        alert('すべてのブロックにセールス箇所が追加済みです。または、執筆内容がありません。');
         setSalesLocationLoading(false);
         return;
       }
