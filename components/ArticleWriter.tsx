@@ -1014,17 +1014,25 @@ export default function ArticleWriter({ articleData, onSaveArticle }: ArticleWri
           h2Blocks: h2Blocks.map(block => ({
             id: block.id,
             h2Title: block.h2Title,
+            h3s: block.h3s,
             writtenContent: block.writtenContent,
           })),
         }),
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || '監修者の吹き出しの生成に失敗しました');
+      // レスポンスのContent-Typeを確認
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        const text = await response.text();
+        console.error('Non-JSON response:', text.substring(0, 500));
+        throw new Error(`サーバーエラーが発生しました。レスポンスがJSON形式ではありません。ステータス: ${response.status}`);
       }
 
       const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error || `監修者の吹き出しの生成に失敗しました（ステータス: ${response.status}）`);
+      }
       if (data.error) {
         throw new Error(data.error);
       }
