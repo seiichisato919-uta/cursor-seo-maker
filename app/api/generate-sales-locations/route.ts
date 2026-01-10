@@ -41,29 +41,8 @@ export async function POST(request: NextRequest) {
             throw new Error(`プロンプトの生成に失敗しました: ${promptError.message}`);
           }
           
-          // 既存の記事内容を保持したまま、セールス箇所に「※ここにセールス文を挿入」を挿入するように指示
-          fullPrompt += `
-
-## ⚠️【超重要】出力形式について⚠️
-- **既存の記事内容を一字一句そのまま保持してください**
-- **既存の記事内容を削除したり、変更したり、要約したりしてはいけません**
-- **既存の記事内容をそのまま出力し、セールス文を挿入すべき箇所に「※ここにセールス文を挿入」という文字を挿入してください**
-- **既存の文章を全て残したまま、「※ここにセールス文を挿入」だけを追加してください**
-- **既存の文章を削除したり、変更したり、要約したりしてはいけません**
-- **既存の文章を一字一句そのまま保持し、適切な箇所に「※ここにセールス文を挿入」を挿入してください**
-- **見出し（##、###、H2:、H3:など）は一切出力しないでください**
-- **見出しを含めず、本文の内容のみを出力してください**
-- **分析結果や提案メッセージは一切出力しないでください**
-- **「記事を分析し、セールス箇所を特定します」などのメッセージは出力しないでください**
-- **「【分析結果】」「【セールス箇所提案】」などの見出しは出力しないでください**
-- **「提案内容は適切でしたか?」などの質問は出力しないでください**
-- **「---」などの区切り線も出力しないでください**
-- **既存の記事内容に「※ここにセールス文を挿入」を挿入した結果のみを出力してください**
-- **出力は既存の記事内容（「※ここにセールス文を挿入」挿入済み）のみで、それ以外は一切出力しないでください**
-- **出力例：**
-  既存の文章の一部です。ここにセールス文を挿入すべきです。
-  ※ここにセールス文を挿入
-  既存の文章の続きです。`;
+          // 既存の記事内容を保持したまま、セールス箇所に「※ここにセールス文を書く」を挿入するように指示
+          // （プロンプトファイルに既に詳細な指示が含まれているため、追加の指示は不要）
           
           let result;
           try {
@@ -71,7 +50,7 @@ export async function POST(request: NextRequest) {
             result = await callGemini(fullPrompt, 'gemini-3-pro-preview', undefined, 55000);
             console.log(`[Sales Locations] Block ${block.id} - Raw API response length: ${result?.length || 0}`);
             console.log(`[Sales Locations] Block ${block.id} - Raw API response (first 2000 chars):`, result?.substring(0, 2000));
-            console.log(`[Sales Locations] Block ${block.id} - Raw API response contains "※ここにセールス文を挿入": ${result?.includes('※ここにセールス文を挿入') || false}`);
+            console.log(`[Sales Locations] Block ${block.id} - Raw API response contains "※ここにセールス文を書く": ${result?.includes('※ここにセールス文を書く') || false}`);
           } catch (geminiError: any) {
             console.error(`Gemini API error for block ${block.id}:`, geminiError);
             throw new Error(`Gemini API呼び出しに失敗しました: ${geminiError.message || '不明なエラー'}`);
@@ -101,8 +80,8 @@ export async function POST(request: NextRequest) {
           const originalContentStart = block.writtenContent.trim().substring(0, 100);
           const hasOriginalContent = cleanedResult.includes(originalContentStart);
           
-          // 「※ここにセールス文を挿入」が含まれているか確認
-          const hasSalesMarker = cleanedResult.includes('※ここにセールス文を挿入');
+          // 「※ここにセールス文を書く」が含まれているか確認
+          const hasSalesMarker = cleanedResult.includes('※ここにセールス文を書く');
           
           console.log(`[Sales Locations] Block ${block.id} - Has original content: ${hasOriginalContent}`);
           console.log(`[Sales Locations] Block ${block.id} - Has sales marker: ${hasSalesMarker}`);
@@ -198,15 +177,15 @@ export async function POST(request: NextRequest) {
               }
             }
             
-            // 「※ここにセールス文を挿入」が含まれている場合は、必ずAPIレスポンスを返す
+            // 「※ここにセールス文を書く」が含まれている場合は、必ずAPIレスポンスを返す
             const finalResult = cleanedResult.trim();
-            const hasSalesMarkerInFinal = finalResult.includes('※ここにセールス文を挿入');
+            const hasSalesMarkerInFinal = finalResult.includes('※ここにセールス文を書く');
             
             console.log(`[Sales Locations] Block ${block.id} - Final result length: ${finalResult.length}`);
-            console.log(`[Sales Locations] Block ${block.id} - Final result contains "※ここにセールス文を挿入": ${hasSalesMarkerInFinal}`);
+            console.log(`[Sales Locations] Block ${block.id} - Final result contains "※ここにセールス文を書く": ${hasSalesMarkerInFinal}`);
             
             if (hasSalesMarkerInFinal) {
-              // 「※ここにセールス文を挿入」が含まれている場合は、APIレスポンスを返す
+              // 「※ここにセールス文を書く」が含まれている場合は、APIレスポンスを返す
               console.log(`[Sales Locations] Block ${block.id} - Returning API response with sales marker`);
               results[block.id] = finalResult;
             } else if (!allOriginalLinesPreserved) {
@@ -214,7 +193,7 @@ export async function POST(request: NextRequest) {
               // 既存の内容が変更されている可能性がある場合は、既存の内容をそのまま返す
               results[block.id] = block.writtenContent;
             } else {
-              // 「※ここにセールス文を挿入」が含まれていない場合は、元の内容を返す
+              // 「※ここにセールス文を書く」が含まれていない場合は、元の内容を返す
               console.warn(`[Sales Locations] Block ${block.id} - No sales marker found in result. Returning original content.`);
               results[block.id] = block.writtenContent;
             }
