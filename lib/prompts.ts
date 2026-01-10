@@ -330,15 +330,19 @@ export function getInternalLinkPrompt(data: { article: string; spreadsheetData?:
 ${articleList}`;
   }
   
+  // 記事内容が長すぎる場合は先頭3000文字に制限（タイムアウト対策）
+  const articleToProcess = data.article && data.article.length > 3000 
+    ? data.article.substring(0, 3000) + '\n\n（...以下省略）'
+    : data.article;
+  
   return `${basePrompt}${spreadsheetSection}
 
 記事内容:
-${data.article}
+${articleToProcess}
 
 ## 出力形式
-- 既存の記事内容を一字一句そのまま保持し、適切な箇所に「参考記事:記事タイトル(URL)」形式で内部リンクを挿入
-- 見出しは出力せず、本文のみを出力
-- 分析結果やメッセージは一切出力しない`;
+- 既存の記事内容をそのまま保持し、「参考記事:記事タイトル(URL)」形式で内部リンクを挿入
+- 見出しは出力しない`;
 }
 
 /**
