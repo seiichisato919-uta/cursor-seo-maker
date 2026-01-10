@@ -55,6 +55,12 @@ export async function POST(request: NextRequest) {
       
       try {
         for (const block of limitedBlocks) {
+          // フロントエンド側で既にフィルタリングされているが、念のため再度確認
+          if (!block.writtenContent || block.writtenContent.trim().length === 0) {
+            // 執筆内容がない場合はスキップ
+            results[block.id] = block.writtenContent || '';
+            continue;
+          }
           // 「導入文」「ディスクリプション」「まとめ」には監修者の吹き出しを書かない
           const h2Title = block.h2Title || '';
           const isIntroBlock = h2Title.includes('導入') || h2Title.includes('導入文');
