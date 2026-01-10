@@ -159,8 +159,12 @@ export async function POST(request: NextRequest) {
           
           // デバッグログ：プロンプトの長さと内容の一部を確認
           console.log(`[Internal Links] Block ${block.id} - Prompt length: ${fullPrompt.length}`);
-          console.log(`[Internal Links] Block ${block.id} - Prompt preview (last 1000 chars):`, fullPrompt.substring(Math.max(0, fullPrompt.length - 1000)));
+          console.log(`[Internal Links] Block ${block.id} - Prompt preview (last 2000 chars):`, fullPrompt.substring(Math.max(0, fullPrompt.length - 2000)));
           console.log(`[Internal Links] Block ${block.id} - Article content length: ${blockArticle.length}`);
+          console.log(`[Internal Links] Block ${block.id} - Spreadsheet data count: ${spreadsheetData?.length || 0}`);
+          // プロンプトに記事一覧が含まれているか確認
+          const hasArticleList = fullPrompt.includes('記事一覧') || fullPrompt.includes('Webライター');
+          console.log(`[Internal Links] Block ${block.id} - Prompt contains article list: ${hasArticleList}`);
           
           let result;
           try {
