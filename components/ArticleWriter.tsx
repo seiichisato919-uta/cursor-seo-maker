@@ -930,6 +930,12 @@ export default function ArticleWriter({ articleData, onSaveArticle }: ArticleWri
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           article: fullArticle,
+          h2Blocks: h2Blocks.map(block => ({
+            id: block.id,
+            h2Title: block.h2Title,
+            h3s: block.h3s,
+            writtenContent: block.writtenContent,
+          })),
           articleData: articleData,
           keyword: articleData?.mainKeyword,
           title: title,

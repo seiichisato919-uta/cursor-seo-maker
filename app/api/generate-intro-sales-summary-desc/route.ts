@@ -15,7 +15,7 @@ export async function POST(request: NextRequest) {
     const blocksWithSalesMarkers: Array<{ id: string; content: string }> = [];
     if (data.h2Blocks && Array.isArray(data.h2Blocks)) {
       data.h2Blocks.forEach((block: any) => {
-        if (block.writtenContent && block.writtenContent.includes('※ここにセールス文を挿入')) {
+        if (block.writtenContent && block.writtenContent.includes('※ここにセールス文を書く')) {
           blocksWithSalesMarkers.push({
             id: block.id,
             content: block.writtenContent,
@@ -96,7 +96,7 @@ Webライター歴11年
 ブロックID: [ブロックID]
 セールス文: [セールス文の内容のみ]
 
-**重要：セールス文は「※ここにセールス文を挿入」の箇所に挿入するセールス文の内容のみを出力してください。既存の文章は一切出力しないでください。**
+**重要：セールス文は「※ここにセールス文を書く」の箇所に挿入するセールス文の内容のみを出力してください。既存の文章は一切出力しないでください。**
 
 複数のブロックがある場合は、それぞれを分けて出力してください。
 
@@ -110,8 +110,8 @@ Webライター歴11年
 ここにディスクリプションを出力してください。
 
 ## ⚠️【超重要】セールス文の挿入について⚠️
-- **セールス文は「※ここにセールス文を挿入」の箇所に挿入するセールス文の内容のみを出力してください**
-- **既存の文章（「※ここにセールス文を挿入」を含む）は一切出力しないでください**
+- **セールス文は「※ここにセールス文を書く」の箇所に挿入するセールス文の内容のみを出力してください**
+- **既存の文章（「※ここにセールス文を書く」を含む）は一切出力しないでください**
 - **既存の文章を削除したり、変更したり、要約したりしてはいけません**
 - **セールス文の内容のみを出力してください**
 - **出力例：**
@@ -150,8 +150,8 @@ Webライター歴11年
       for (const match of blockMatches) {
         let salesText = match[2].trim();
         // セールス文の内容のみを抽出（既存の文章が含まれている場合は削除）
-        // 「※ここにセールス文を挿入」が含まれている場合は、その前後の既存の文章を削除
-        salesText = salesText.replace(/[\s\S]*?※ここにセールス文を挿入[\s\S]*?/g, '');
+        // 「※ここにセールス文を書く」が含まれている場合は、その前後の既存の文章を削除
+        salesText = salesText.replace(/[\s\S]*?※ここにセールス文を書く[\s\S]*?/g, '');
         // 既存の文章のパターンを削除（「既存の文章の一部です。」などのパターン）
         salesText = salesText.replace(/既存の文章[^\n]*\n?/g, '');
         salesText = salesText.replace(/既存の文章の続き[^\n]*\n?/g, '');
