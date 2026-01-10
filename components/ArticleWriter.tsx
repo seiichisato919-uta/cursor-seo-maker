@@ -822,7 +822,7 @@ export default function ArticleWriter({ articleData, onSaveArticle }: ArticleWri
         throw new Error(data.error);
       }
 
-      // H2ブロックごとに「※ここにセールス文を挿入」が挿入された内容を取得
+      // H2ブロックごとに「※ここにセールス文を書く」が挿入された内容を取得
       if (data.h2BlocksWithSalesMarkers) {
         // 各H2ブロックの執筆内容を更新
         setH2Blocks(prevBlocks =>
@@ -835,7 +835,7 @@ export default function ArticleWriter({ articleData, onSaveArticle }: ArticleWri
           })
         );
         
-        alert('セールス箇所に「※ここにセールス文を挿入」が追加されました。');
+        alert('セールス箇所に「※ここにセールス文を書く」が追加されました。');
       } else if (data.salesLocations) {
         // 後方互換性：記事全体が返された場合
         alert('セールス箇所が生成されましたが、H2ブロックごとの処理が必要です。');
