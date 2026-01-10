@@ -115,11 +115,20 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ html: extractedHtml, wordpressHtml: extractedHtml });
   } catch (error: any) {
     console.error('Error converting to WordPress:', error);
+    console.error('Error details:', {
+      message: error.message,
+      status: error.status,
+      statusCode: error.statusCode,
+      name: error.name,
+    });
     
     // 認証エラーの場合、より分かりやすいエラーメッセージを返す
-    if (error.message?.includes('ANTHROPIC_API_KEY') || error.message?.includes('認証に失敗') || error.status === 401) {
+    if (error.status === 401 || error.statusCode === 401 || error.message?.includes('authentication_error') || error.message?.includes('invalid x-api-key') || error.message?.includes('認証に失敗')) {
       return NextResponse.json(
-        { error: 'Claude APIの認証に失敗しました。Vercelの環境変数設定でANTHROPIC_API_KEYが正しく設定されているか確認してください。' },
+        { 
+          error: 'Claude APIの認証に失敗しました。Vercelの環境変数設定でANTHROPIC_API_KEYが正しく設定されているか確認してください。',
+          details: '環境変数が設定されていない、または無効なAPIキーが設定されている可能性があります。VercelのSettings > Environment Variablesで確認してください。'
+        },
         { status: 401 }
       );
     }
