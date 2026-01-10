@@ -366,11 +366,41 @@ export default function ArticleWriter({ articleData, onSaveArticle }: ArticleWri
       }
 
       // 執筆された内容を更新
-      setH2Blocks(prevBlocks =>
-        prevBlocks.map(b =>
+      setH2Blocks(prevBlocks => {
+        const updatedBlocks = prevBlocks.map(b =>
           b.id === blockId ? { ...b, writtenContent: data.content || '' } : b
-        )
-      );
+        );
+        
+        // 執筆完了後、即座に保存（自動保存を待たない）
+        try {
+          const articleId = articleData.articleId || currentArticleId || `article-${Date.now()}`;
+          const blocksWithContent = updatedBlocks.filter(block => block.writtenContent && block.writtenContent.trim().length > 0);
+          
+          const dataToSave = {
+            ...articleData,
+            articleId,
+            title,
+            structure,
+            h2Blocks: updatedBlocks.map(block => ({
+              ...block,
+              writtenContent: block.writtenContent || '',
+              attachedFiles: [], // ファイルは保存しない
+            })),
+            intro,
+            introHtmlContent,
+            description,
+            savedAt: new Date().toISOString(),
+          };
+          
+          const saveKey = `seo-article-data-${articleId}`;
+          localStorage.setItem(saveKey, JSON.stringify(dataToSave));
+          console.log(`[Write] Immediately saved block ${blockId} with ${data.content?.length || 0} characters to ${saveKey}`);
+        } catch (saveError) {
+          console.error('[Write] Error saving immediately after writing:', saveError);
+        }
+        
+        return updatedBlocks;
+      });
     } catch (error: any) {
       console.error('Error writing block:', error);
       alert(error.message || '記事の執筆に失敗しました');
