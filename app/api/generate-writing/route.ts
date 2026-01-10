@@ -2,7 +2,51 @@ import { NextRequest, NextResponse } from 'next/server';
 import { callGemini } from '@/lib/gemini';
 import { getWritingPrompt } from '@/lib/prompts';
 
-export const maxDuration = 10; // Vercelの関数タイムアウト設定（最大10秒）
+export const maxDuration = 60; // Vercelの関数タイムアウト設定（最大60秒）
+
+/**
+ * 記事構成から、該当H2ブロックの前後のH2タイトルのみを抽出する
+ * プロンプトの長さを短縮するため
+ */
+function getRelevantStructurePart(structure: string, targetH2Block: string): string {
+  if (!structure || !targetH2Block) return structure || '';
+  
+  const lines = structure.split('\n');
+  const h2Titles: string[] = [];
+  let currentH2 = '';
+  let targetIndex = -1;
+  
+  // H2タイトルを抽出
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (line.match(/^##\s+(.+)$/) || line.match(/^H2[:：]\s*(.+)$/i) || line.match(/^##\s*H2[:：]\s*(.+)$/i)) {
+      const h2Title = line.replace(/^##\s*H2[:：]\s*/i, '').replace(/^##\s*/, '').replace(/^H2[:：]\s*/i, '').trim();
+      h2Titles.push(h2Title);
+      if (h2Title === targetH2Block || h2Title.includes(targetH2Block) || targetH2Block.includes(h2Title)) {
+        targetIndex = h2Titles.length - 1;
+      }
+    }
+  }
+  
+  // 該当H2ブロックが見つからない場合は全体を返す（フォールバック）
+  if (targetIndex === -1) {
+    // 全体が長すぎる場合は、最初の3つのH2だけを返す
+    if (structure.length > 2000) {
+      return h2Titles.slice(0, 3).map((title, idx) => `H2: ${title}`).join('\n') + '\n（...以下省略）';
+    }
+    return structure;
+  }
+  
+  // 該当H2ブロックの前後1つずつ（合計3つ）のH2タイトルのみを返す
+  const startIndex = Math.max(0, targetIndex - 1);
+  const endIndex = Math.min(h2Titles.length - 1, targetIndex + 1);
+  const relevantTitles = h2Titles.slice(startIndex, endIndex + 1);
+  
+  return relevantTitles.map((title, idx) => {
+    const isTarget = startIndex + idx === targetIndex;
+    return `H2: ${title}${isTarget ? ' ←【執筆対象】' : ''}`;
+  }).join('\n');
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -75,7 +119,7 @@ ${data.h3s && data.h3s.length > 0
 キーワード: ${data.keyword}
 ターゲット読者: ${data.targetReader}
 検索意図: ${data.searchIntent}
-記事構成（参考）: ${data.structure}
+${data.structure ? `記事構成（参考・該当H2ブロックの前後のみ）: ${getRelevantStructurePart(data.structure, data.h2Block)}` : ''}
 メディアの記事例（参考）: ${data.mediaExample || ''}
 執筆指示: ${data.editingInstruction || ''}`;
 
@@ -151,10 +195,10 @@ ${data.h3s && data.h3s.length > 0
 
     const finalPrompt = promptWithData + filePromptSection;
     
-    // Gemini API呼び出し（タイムアウトを8秒に設定）
+    // Gemini API呼び出し（タイムアウトを55秒に設定）
     let content;
     try {
-      content = await callGemini(finalPrompt, 'gemini-3-pro-preview', images.length > 0 ? images : undefined, 8000);
+      content = await callGemini(finalPrompt, 'gemini-3-pro-preview', images.length > 0 ? images : undefined, 55000);
     } catch (geminiError: any) {
       console.error('Gemini API error:', geminiError);
       // タイムアウトエラーの場合は、より分かりやすいメッセージを返す

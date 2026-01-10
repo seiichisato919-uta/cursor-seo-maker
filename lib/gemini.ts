@@ -17,7 +17,7 @@ export async function callGemini(
   prompt: string, 
   model: string = 'gemini-3-pro-preview',
   images?: Array<{ mimeType: string; data: string }>,
-  timeout: number = 8000 // デフォルト8秒（Vercelの10秒制限を考慮）
+  timeout: number = 55000 // デフォルト55秒（Vercelの60秒制限を考慮）
 ) {
   try {
     const genAI = getGeminiClient();
