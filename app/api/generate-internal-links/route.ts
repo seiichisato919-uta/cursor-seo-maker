@@ -162,7 +162,9 @@ export async function POST(request: NextRequest) {
             // タイムアウトを8秒に設定（Vercelの10秒制限を考慮）
             result = await callGemini(fullPrompt, 'gemini-3-pro-preview', undefined, 8000);
             console.log(`[Internal Links] Block ${block.id} - Raw API response length: ${result?.length || 0}`);
-            console.log(`[Internal Links] Block ${block.id} - Raw API response (first 500 chars):`, result?.substring(0, 500));
+            console.log(`[Internal Links] Block ${block.id} - Raw API response (first 2000 chars):`, result?.substring(0, 2000));
+            console.log(`[Internal Links] Block ${block.id} - Raw API response contains "参考記事：": ${result?.includes('参考記事：') || false}`);
+            console.log(`[Internal Links] Block ${block.id} - Raw API response contains "参考記事:": ${result?.includes('参考記事:') || false}`);
           } catch (geminiError: any) {
             console.error(`Gemini API error for block ${block.id}:`, geminiError);
             // タイムアウトエラーの場合は、既存の内容をそのまま返す
@@ -287,36 +289,22 @@ export async function POST(request: NextRequest) {
               cleanedResult = cleanedLines.join('\n').trim();
             }
             
-            // 【重要】既存の文章（「H2: 」「H3: 」などの表記を含む）は一切変更しない
-            // 既存の内容の完全性を確認（既存の内容が一字一句保持されているか）
-            const originalContentLines = block.writtenContent.split('\n');
-            const finalResultLines = cleanedResult.split('\n');
+            // 内部リンクが含まれている場合は、必ずAPIレスポンスを返す
+            const finalResult = cleanedResult.trim();
+            const hasInternalLinkInFinal = finalResult.includes('参考記事：') || finalResult.includes('参考記事:');
             
-            // 既存の内容の各行が最終結果に含まれているか確認（順序は変わっても良いが、内容は保持されている必要がある）
-            let allOriginalLinesPreserved = true;
-            for (const originalLine of originalContentLines) {
-              const trimmedOriginal = originalLine.trim();
-              if (trimmedOriginal.length > 0) {
-                // 既存の行が最終結果に含まれているか確認
-                const found = finalResultLines.some(resultLine => resultLine.includes(trimmedOriginal) || trimmedOriginal.includes(resultLine.trim()));
-                if (!found) {
-                  console.warn(`[Internal Links] Block ${block.id} - Original line not found in result: ${trimmedOriginal.substring(0, 50)}`);
-                  allOriginalLinesPreserved = false;
-                }
-              }
-            }
+            console.log(`[Internal Links] Block ${block.id} - Final result length: ${finalResult.length}`);
+            console.log(`[Internal Links] Block ${block.id} - Final result contains "参考記事：": ${finalResult.includes('参考記事：')}`);
+            console.log(`[Internal Links] Block ${block.id} - Final result contains "参考記事:": ${finalResult.includes('参考記事:')}`);
             
-            if (!allOriginalLinesPreserved) {
-              console.warn(`[Internal Links] Block ${block.id} - Some original content may have been modified. Using original content.`);
-              // 既存の内容が変更されている可能性がある場合は、既存の内容をそのまま返す
-              results[block.id] = block.writtenContent;
-            } else {
-              const finalResult = cleanedResult.trim();
-              console.log(`[Internal Links] Block ${block.id} - Final result length: ${finalResult.length}`);
-              console.log(`[Internal Links] Block ${block.id} - Final result contains "参考記事：": ${finalResult.includes('参考記事：')}`);
-              console.log(`[Internal Links] Block ${block.id} - Final result contains "参考記事:": ${finalResult.includes('参考記事:')}`);
-              console.log(`[Internal Links] Block ${block.id} - Original content preserved: ${allOriginalLinesPreserved}`);
+            if (hasInternalLinkInFinal) {
+              // 内部リンクが含まれている場合は、APIレスポンスを返す
+              console.log(`[Internal Links] Block ${block.id} - Returning API response with internal links`);
               results[block.id] = finalResult;
+            } else {
+              // 内部リンクが含まれていない場合は、元の内容を返す
+              console.warn(`[Internal Links] Block ${block.id} - No internal links found in result. Returning original content.`);
+              results[block.id] = block.writtenContent;
             }
           }
         }
