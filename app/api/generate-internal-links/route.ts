@@ -208,15 +208,22 @@ export async function POST(request: NextRequest) {
           console.log(`[Internal Links] Block ${block.id} - Has original content: ${hasOriginalContent}`);
           console.log(`[Internal Links] Block ${block.id} - Has internal link: ${hasInternalLink}`);
           console.log(`[Internal Links] Block ${block.id} - Cleaned result length: ${cleanedResult.length}`);
-          console.log(`[Internal Links] Block ${block.id} - Cleaned result (first 500 chars):`, cleanedResult.substring(0, 500));
+          console.log(`[Internal Links] Block ${block.id} - Cleaned result (first 1000 chars):`, cleanedResult.substring(0, 1000));
+          console.log(`[Internal Links] Block ${block.id} - Original content start:`, originalContentStart);
           
           if (!hasOriginalContent) {
-            // 既存の内容が含まれていない場合は警告し、既存の内容をそのまま返す
+            // 既存の内容が含まれていない場合は警告し、APIレスポンスをそのまま返す（内部リンクが含まれている可能性があるため）
             console.warn(`既存の内容が保持されていない可能性があります。ブロックID: ${block.id}`);
             console.warn(`元の内容の最初の100文字: ${originalContentStart}`);
-            console.warn(`APIレスポンスの最初の500文字: ${cleanedResult.substring(0, 500)}`);
-            // 既存の内容をそのまま返す（安全策）
-            results[block.id] = block.writtenContent;
+            console.warn(`APIレスポンス全体:`, cleanedResult);
+            // 内部リンクが含まれている場合は、APIレスポンスを返す
+            if (hasInternalLink) {
+              console.log(`[Internal Links] Block ${block.id} - Returning API response with internal links`);
+              results[block.id] = cleanedResult;
+            } else {
+              // 内部リンクも含まれていない場合は、元の内容を返す
+              results[block.id] = block.writtenContent;
+            }
           } else {
             // 既存の内容が含まれている場合
             // 先頭部分に見出し（##、###など）が含まれている場合は削除
