@@ -35,6 +35,9 @@ export async function POST(request: NextRequest) {
         return count;
       }, 0);
       
+      console.log(`[Sales Locations] Total sales markers in article: ${totalSalesMarkers}`);
+      console.log(`[Sales Locations] Blocks to process: ${blocksToProcess.length}`);
+      
       if (totalSalesMarkers >= 2) {
         console.log(`[Sales Locations] Already have ${totalSalesMarkers} sales markers in article. Skipping processing.`);
         return NextResponse.json({ 
@@ -43,8 +46,18 @@ export async function POST(request: NextRequest) {
         });
       }
       
+      if (blocksToProcess.length === 0) {
+        console.log(`[Sales Locations] No blocks to process (all blocks already have sales markers).`);
+        return NextResponse.json({ 
+          h2BlocksWithSalesMarkers: {},
+          message: 'すべてのブロックに既にセールス箇所が追加されています。',
+        });
+      }
+      
       const maxBlocksPerRequest = 1; // 1リクエストあたり1ブロックのみ処理（タイムアウト回避）
       const limitedBlocks = blocksToProcess.slice(0, maxBlocksPerRequest);
+      
+      console.log(`[Sales Locations] Processing block: ${limitedBlocks[0]?.id}, Total markers before: ${totalSalesMarkers}`);
       
       if (blocksToProcess.length > maxBlocksPerRequest) {
         console.warn(`Processing only first ${maxBlocksPerRequest} block out of ${blocksToProcess.length} to avoid timeout. Remaining blocks will need to be processed separately.`);
