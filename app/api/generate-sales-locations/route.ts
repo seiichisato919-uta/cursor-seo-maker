@@ -16,7 +16,33 @@ export async function POST(request: NextRequest) {
       
       // 処理するブロック数を制限（タイムアウト対策）
       // 1リクエストあたり1ブロックのみ処理（タイムアウト回避）
-      const blocksToProcess = data.h2Blocks.filter((block: any) => block.writtenContent && block.writtenContent.trim().length > 0);
+      // 既に「※ここにセールス文を書く」が含まれているブロックはスキップ
+      const blocksToProcess = data.h2Blocks.filter((block: any) => {
+        if (!block.writtenContent || block.writtenContent.trim().length === 0) {
+          return false;
+        }
+        // 既にセールスマーカーが含まれている場合はスキップ
+        const hasSalesMarker = block.writtenContent.includes('※ここにセールス文を書く');
+        return !hasSalesMarker;
+      });
+      
+      // 記事全体で既に「※ここにセールス文を書く」が2箇所以上ある場合は、処理をスキップ
+      const allBlocks = data.h2Blocks || [];
+      const totalSalesMarkers = allBlocks.reduce((count: number, block: any) => {
+        if (block.writtenContent && block.writtenContent.includes('※ここにセールス文を書く')) {
+          return count + (block.writtenContent.match(/※ここにセールス文を書く/g) || []).length;
+        }
+        return count;
+      }, 0);
+      
+      if (totalSalesMarkers >= 2) {
+        console.log(`[Sales Locations] Already have ${totalSalesMarkers} sales markers in article. Skipping processing.`);
+        return NextResponse.json({ 
+          h2BlocksWithSalesMarkers: {},
+          message: '記事全体で既に2箇所以上のセールス箇所が追加されています。',
+        });
+      }
+      
       const maxBlocksPerRequest = 1; // 1リクエストあたり1ブロックのみ処理（タイムアウト回避）
       const limitedBlocks = blocksToProcess.slice(0, maxBlocksPerRequest);
       
