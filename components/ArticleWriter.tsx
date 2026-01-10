@@ -942,11 +942,6 @@ export default function ArticleWriter({ articleData, onSaveArticle }: ArticleWri
           productUrl: articleData?.productUrl,
           introReaderWorry: articleData?.introReaderWorry,
           descriptionKeywords: articleData?.descriptionKeywords,
-          h2Blocks: h2Blocks.map(block => ({
-            id: block.id,
-            h2Title: block.h2Title,
-            writtenContent: block.writtenContent,
-          })),
         }),
       });
 
