@@ -202,8 +202,8 @@ export async function POST(request: NextRequest) {
           const originalContentStart = block.writtenContent.trim().substring(0, 100);
           const hasOriginalContent = cleanedResult.includes(originalContentStart);
           
-          // 内部リンクが含まれているか確認
-          const hasInternalLink = cleanedResult.includes('参考記事:');
+          // 内部リンクが含まれているか確認（全角コロンと半角コロンの両方をチェック）
+          const hasInternalLink = cleanedResult.includes('参考記事：') || cleanedResult.includes('参考記事:');
           
           console.log(`[Internal Links] Block ${block.id} - Has original content: ${hasOriginalContent}`);
           console.log(`[Internal Links] Block ${block.id} - Has internal link: ${hasInternalLink}`);
@@ -313,6 +313,7 @@ export async function POST(request: NextRequest) {
             } else {
               const finalResult = cleanedResult.trim();
               console.log(`[Internal Links] Block ${block.id} - Final result length: ${finalResult.length}`);
+              console.log(`[Internal Links] Block ${block.id} - Final result contains "参考記事：": ${finalResult.includes('参考記事：')}`);
               console.log(`[Internal Links] Block ${block.id} - Final result contains "参考記事:": ${finalResult.includes('参考記事:')}`);
               console.log(`[Internal Links] Block ${block.id} - Original content preserved: ${allOriginalLinesPreserved}`);
               results[block.id] = finalResult;
@@ -360,7 +361,8 @@ export async function POST(request: NextRequest) {
     fullPrompt += `
 
 ## 出力形式
-- 既存の記事内容を一字一句そのまま保持し、適切な箇所に「参考記事:記事タイトル(URL)」形式で内部リンクを挿入
+- 既存の記事内容を一字一句そのまま保持し、適切な箇所に「参考記事：記事タイトル(URL)」形式で内部リンクを挿入
+- 内部リンクは必ず「参考記事：」（全角コロン）で始める
 - 見出しは出力せず、本文のみを出力
 - 分析結果やメッセージは一切出力しない`;
     
