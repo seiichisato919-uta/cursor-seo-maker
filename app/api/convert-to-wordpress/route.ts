@@ -60,6 +60,18 @@ function extractHtmlCode(responseText: string): string {
 
 export async function POST(request: NextRequest) {
   try {
+    // 環境変数の確認
+    const apiKey = process.env.ANTHROPIC_API_KEY;
+    console.log('[Convert to WordPress] ANTHROPIC_API_KEY exists:', !!apiKey);
+    console.log('[Convert to WordPress] ANTHROPIC_API_KEY length:', apiKey?.length || 0);
+    
+    if (!apiKey) {
+      return NextResponse.json(
+        { error: 'ANTHROPIC_API_KEY環境変数が設定されていません。Vercelの環境変数設定を確認してください。' },
+        { status: 500 }
+      );
+    }
+    
     const data = await request.json();
     
     const content = data.content || data.article;

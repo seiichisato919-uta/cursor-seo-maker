@@ -5,9 +5,18 @@ let anthropic: Anthropic | null = null;
 export function getClaudeClient() {
   if (!anthropic) {
     const apiKey = process.env.ANTHROPIC_API_KEY;
+    console.log('[Claude] ANTHROPIC_API_KEY exists:', !!apiKey);
+    console.log('[Claude] ANTHROPIC_API_KEY length:', apiKey?.length || 0);
+    console.log('[Claude] ANTHROPIC_API_KEY starts with sk-ant:', apiKey?.startsWith('sk-ant-') || false);
+    
     if (!apiKey) {
       throw new Error('ANTHROPIC_API_KEY is not set');
     }
+    
+    if (!apiKey.startsWith('sk-ant-')) {
+      console.warn('[Claude] ANTHROPIC_API_KEY format may be incorrect. Expected format: sk-ant-...');
+    }
+    
     anthropic = new Anthropic({ apiKey });
   }
   return anthropic;
