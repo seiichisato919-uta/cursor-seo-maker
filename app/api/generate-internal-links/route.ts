@@ -155,8 +155,7 @@ export async function POST(request: NextRequest) {
             throw new Error(`プロンプトの生成に失敗しました: ${promptError.message}`);
           }
           
-          // 既存の記事内容を保持したまま、内部リンクを挿入するように指示（超簡潔版）
-          fullPrompt += `\n\n出力: 既存の記事内容をそのまま保持し、「参考記事:記事タイトル(URL)」形式で内部リンクを挿入。見出しは出力しない。`;
+          // プロンプトに既に出力形式の指示が含まれているので、追加の指示は不要
           
           let result;
           try {
