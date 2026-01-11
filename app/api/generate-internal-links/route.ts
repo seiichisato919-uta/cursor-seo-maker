@@ -208,32 +208,38 @@ export async function POST(request: NextRequest) {
           // 「---」などの区切り線を削除
           cleanedResult = cleanedResult.replace(/^---+$/gm, '');
           
-          // 既存の内容が含まれているか確認
-          const originalContentStart = block.writtenContent.trim().substring(0, 100);
-          const hasOriginalContent = cleanedResult.includes(originalContentStart);
+          // 既存の内容が含まれているか確認（開始部分と終了部分の両方を確認）
+          const originalContent = block.writtenContent.trim();
+          const originalContentStart = originalContent.substring(0, 100);
+          const originalContentEnd = originalContent.substring(Math.max(0, originalContent.length - 100));
+          const hasOriginalContentStart = cleanedResult.includes(originalContentStart);
+          const hasOriginalContentEnd = cleanedResult.includes(originalContentEnd);
           
           // 内部リンクが含まれているか確認（全角コロンと半角コロンの両方をチェック）
           const hasInternalLink = cleanedResult.includes('参考記事：') || cleanedResult.includes('参考記事:');
           
-          console.log(`[Internal Links] Block ${block.id} - Has original content: ${hasOriginalContent}`);
+          console.log(`[Internal Links] Block ${block.id} - Has original content start: ${hasOriginalContentStart}`);
+          console.log(`[Internal Links] Block ${block.id} - Has original content end: ${hasOriginalContentEnd}`);
           console.log(`[Internal Links] Block ${block.id} - Has internal link: ${hasInternalLink}`);
           console.log(`[Internal Links] Block ${block.id} - Cleaned result length: ${cleanedResult.length}`);
+          console.log(`[Internal Links] Block ${block.id} - Original content length: ${originalContent.length}`);
           console.log(`[Internal Links] Block ${block.id} - Cleaned result (first 1000 chars):`, cleanedResult.substring(0, 1000));
           console.log(`[Internal Links] Block ${block.id} - Original content start:`, originalContentStart);
+          console.log(`[Internal Links] Block ${block.id} - Original content end:`, originalContentEnd);
+          
+          // 既存の内容の開始部分と終了部分の両方が含まれていることを確認
+          const hasOriginalContent = hasOriginalContentStart && hasOriginalContentEnd;
           
           if (!hasOriginalContent) {
-            // 既存の内容が含まれていない場合は警告し、APIレスポンスをそのまま返す（内部リンクが含まれている可能性があるため）
-            console.warn(`既存の内容が保持されていない可能性があります。ブロックID: ${block.id}`);
+            // 既存の内容が完全に保持されていない場合は警告し、元の内容を返す
+            console.warn(`既存の内容が完全に保持されていない可能性があります。ブロックID: ${block.id}`);
             console.warn(`元の内容の最初の100文字: ${originalContentStart}`);
-            console.warn(`APIレスポンス全体:`, cleanedResult);
-            // 内部リンクが含まれている場合は、APIレスポンスを返す
-            if (hasInternalLink) {
-              console.log(`[Internal Links] Block ${block.id} - Returning API response with internal links`);
-              results[block.id] = cleanedResult;
-            } else {
-              // 内部リンクも含まれていない場合は、元の内容を返す
-              results[block.id] = block.writtenContent;
-            }
+            console.warn(`元の内容の最後の100文字: ${originalContentEnd}`);
+            console.warn(`APIレスポンスの最初の500文字:`, cleanedResult.substring(0, 500));
+            console.warn(`APIレスポンスの最後の500文字:`, cleanedResult.substring(Math.max(0, cleanedResult.length - 500)));
+            // 安全のため、元の内容を返す（内部リンクが含まれていても、既存の内容が完全に保持されていない場合は元の内容を優先）
+            console.log(`[Internal Links] Block ${block.id} - Returning original content (content not fully preserved)`);
+            results[block.id] = block.writtenContent;
           } else {
             // 既存の内容が含まれている場合
             // 先頭部分に見出し（##、###など）が含まれている場合は削除
@@ -297,21 +303,50 @@ export async function POST(request: NextRequest) {
               cleanedResult = cleanedLines.join('\n').trim();
             }
             
-            // 内部リンクが含まれている場合は、必ずAPIレスポンスを返す
-            const finalResult = cleanedResult.trim();
-            const hasInternalLinkInFinal = finalResult.includes('参考記事：') || finalResult.includes('参考記事:');
+            // 既存の内容の開始位置と終了位置を特定して、その範囲内の内容を保持
+            const originalContent = block.writtenContent.trim();
+            const originalContentEnd = originalContent.substring(Math.max(0, originalContent.length - 100));
+            const originalStartIndex = cleanedResult.indexOf(originalContentStart);
+            const originalEndIndex = cleanedResult.lastIndexOf(originalContentEnd);
             
-            console.log(`[Internal Links] Block ${block.id} - Final result length: ${finalResult.length}`);
-            console.log(`[Internal Links] Block ${block.id} - Final result contains "参考記事：": ${finalResult.includes('参考記事：')}`);
-            console.log(`[Internal Links] Block ${block.id} - Final result contains "参考記事:": ${finalResult.includes('参考記事:')}`);
-            
-            if (hasInternalLinkInFinal) {
-              // 内部リンクが含まれている場合は、APIレスポンスを返す
-              console.log(`[Internal Links] Block ${block.id} - Returning API response with internal links`);
-              results[block.id] = finalResult;
+            // 既存の内容の範囲が正しく特定できているか確認
+            if (originalStartIndex >= 0 && originalEndIndex >= originalStartIndex) {
+              // 既存の内容の範囲内の部分を抽出
+              const extractedContent = cleanedResult.substring(originalStartIndex, originalEndIndex + originalContentEnd.length);
+              
+              // 既存の内容の長さと抽出した内容の長さを比較
+              const extractedLength = extractedContent.length;
+              const originalLength = originalContent.length;
+              
+              console.log(`[Internal Links] Block ${block.id} - Extracted content length: ${extractedLength}`);
+              console.log(`[Internal Links] Block ${block.id} - Original content length: ${originalLength}`);
+              
+              // 抽出した内容が元の内容の80%以上の長さを持っていることを確認（内部リンクが追加されるため、少し長くなる可能性がある）
+              if (extractedLength >= originalLength * 0.8) {
+                const finalResult = cleanedResult.trim();
+                const hasInternalLinkInFinal = finalResult.includes('参考記事：') || finalResult.includes('参考記事:');
+                
+                console.log(`[Internal Links] Block ${block.id} - Final result length: ${finalResult.length}`);
+                console.log(`[Internal Links] Block ${block.id} - Final result contains "参考記事：": ${finalResult.includes('参考記事：')}`);
+                console.log(`[Internal Links] Block ${block.id} - Final result contains "参考記事:": ${finalResult.includes('参考記事:')}`);
+                
+                if (hasInternalLinkInFinal) {
+                  // 内部リンクが含まれている場合は、APIレスポンスを返す
+                  console.log(`[Internal Links] Block ${block.id} - Returning API response with internal links`);
+                  results[block.id] = finalResult;
+                } else {
+                  // 内部リンクが含まれていない場合は、元の内容を返す
+                  console.warn(`[Internal Links] Block ${block.id} - No internal links found in result. Returning original content.`);
+                  results[block.id] = block.writtenContent;
+                }
+              } else {
+                // 抽出した内容が短すぎる場合は、元の内容を返す
+                console.warn(`[Internal Links] Block ${block.id} - Extracted content is too short. Returning original content.`);
+                results[block.id] = block.writtenContent;
+              }
             } else {
-              // 内部リンクが含まれていない場合は、元の内容を返す
-              console.warn(`[Internal Links] Block ${block.id} - No internal links found in result. Returning original content.`);
+              // 既存の内容の範囲が特定できない場合は、元の内容を返す
+              console.warn(`[Internal Links] Block ${block.id} - Could not identify original content range. Returning original content.`);
               results[block.id] = block.writtenContent;
             }
           }

@@ -1895,32 +1895,37 @@ export default function ArticleWriter({ articleData, onSaveArticle }: ArticleWri
               {writingLoading[block.id] ? '執筆中...' : '執筆する'}
             </button>
             
-            {/* 内部リンクを提案してもらうボタン */}
-            <button
-              onClick={() => handleGenerateInternalLinksForBlock(block.id)}
-              disabled={internalLinkLoading || !block.writtenContent || block.writtenContent.trim().length === 0}
-              className="bg-green-500 text-white px-4 py-2 rounded font-semibold hover:bg-green-600 disabled:bg-gray-400 disabled:text-gray-200 text-sm"
-            >
-              {internalLinkLoading ? '内部リンク提案中...' : '内部リンクを提案してもらう'}
-            </button>
-            
-            {/* セールス箇所を提案してもらうボタン */}
-            <button
-              onClick={() => handleGenerateSalesLocationsForBlock(block.id)}
-              disabled={salesLocationLoading || !block.writtenContent || block.writtenContent.trim().length === 0}
-              className="bg-purple-500 text-white px-4 py-2 rounded font-semibold hover:bg-purple-600 disabled:bg-gray-400 disabled:text-gray-200 text-sm"
-            >
-              {salesLocationLoading ? 'セールス箇所提案中...' : 'セールス箇所を提案してもらう'}
-            </button>
-            
-            {/* 監修者の吹き出しを執筆するボタン */}
-            <button
-              onClick={() => handleGenerateSupervisorCommentsForBlock(block.id)}
-              disabled={supervisorCommentLoading || !block.writtenContent || block.writtenContent.trim().length === 0}
-              className="bg-orange-500 text-white px-4 py-2 rounded font-semibold hover:bg-orange-600 disabled:bg-gray-400 disabled:text-gray-200 text-sm"
-            >
-              {supervisorCommentLoading ? '監修者の吹き出し執筆中...' : '監修者の吹き出しを執筆する'}
-            </button>
+            {/* 「まとめ」ブロックにはボタンを表示しない */}
+            {!block.h2Title.includes('まとめ') && (
+              <>
+                {/* 内部リンクを提案してもらうボタン */}
+                <button
+                  onClick={() => handleGenerateInternalLinksForBlock(block.id)}
+                  disabled={internalLinkLoading || !block.writtenContent || block.writtenContent.trim().length === 0}
+                  className="bg-green-500 text-white px-4 py-2 rounded font-semibold hover:bg-green-600 disabled:bg-gray-400 disabled:text-gray-200 text-sm"
+                >
+                  {internalLinkLoading ? '内部リンク提案中...' : '内部リンクを提案してもらう'}
+                </button>
+                
+                {/* セールス箇所を提案してもらうボタン */}
+                <button
+                  onClick={() => handleGenerateSalesLocationsForBlock(block.id)}
+                  disabled={salesLocationLoading || !block.writtenContent || block.writtenContent.trim().length === 0}
+                  className="bg-purple-500 text-white px-4 py-2 rounded font-semibold hover:bg-purple-600 disabled:bg-gray-400 disabled:text-gray-200 text-sm"
+                >
+                  {salesLocationLoading ? 'セールス箇所提案中...' : 'セールス箇所を提案してもらう'}
+                </button>
+                
+                {/* 監修者の吹き出しを執筆するボタン */}
+                <button
+                  onClick={() => handleGenerateSupervisorCommentsForBlock(block.id)}
+                  disabled={supervisorCommentLoading || !block.writtenContent || block.writtenContent.trim().length === 0}
+                  className="bg-orange-500 text-white px-4 py-2 rounded font-semibold hover:bg-orange-600 disabled:bg-gray-400 disabled:text-gray-200 text-sm"
+                >
+                  {supervisorCommentLoading ? '監修者の吹き出し執筆中...' : '監修者の吹き出しを執筆する'}
+                </button>
+              </>
+            )}
           </div>
 
           {/* 執筆欄 */}
@@ -2029,32 +2034,11 @@ export default function ArticleWriter({ articleData, onSaveArticle }: ArticleWri
       {/* 各種ボタン */}
       <div className="mb-4 flex gap-2 flex-wrap">
         <button
-          onClick={handleGenerateInternalLinks}
-          disabled={internalLinkLoading}
-          className="bg-purple-500 text-white px-4 py-2 rounded font-semibold hover:bg-purple-600 disabled:bg-gray-400 disabled:text-gray-200 transition-colors"
-        >
-          {internalLinkLoading ? '内部リンクを提案中…' : '内部リンクを提案してもらう'}
-        </button>
-        <button
-          onClick={handleGenerateSalesLocations}
-          disabled={salesLocationLoading}
-          className="bg-purple-500 text-white px-4 py-2 rounded font-semibold hover:bg-purple-600 disabled:bg-gray-400 disabled:text-gray-200 transition-colors"
-        >
-          {salesLocationLoading ? 'セールス箇所を提案中…' : 'セールス箇所を提案してもらう'}
-        </button>
-        <button
           onClick={handleGenerateIntroSalesSummaryDesc}
           disabled={introSalesSummaryLoading}
           className="bg-purple-500 text-white px-4 py-2 rounded font-semibold hover:bg-purple-600 disabled:bg-gray-400 disabled:text-gray-200 transition-colors"
         >
           {introSalesSummaryLoading ? '導入文・セールス文・まとめ文・ディスクリプションを執筆中…' : '導入文・セールス文・まとめ文・ディスクリプションを執筆する'}
-        </button>
-        <button
-          onClick={handleGenerateSupervisorComments}
-          disabled={supervisorCommentLoading}
-          className="bg-purple-500 text-white px-4 py-2 rounded font-semibold hover:bg-purple-600 disabled:bg-gray-400 disabled:text-gray-200 transition-colors"
-        >
-          {supervisorCommentLoading ? '監修者の吹き出しを執筆中…' : '監修者の吹き出しを執筆する'}
         </button>
         <button
           onClick={handleSave}

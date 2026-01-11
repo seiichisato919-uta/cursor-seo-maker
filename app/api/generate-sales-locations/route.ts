@@ -133,24 +133,35 @@ export async function POST(request: NextRequest) {
           // 「---」などの区切り線を削除
           cleanedResult = cleanedResult.replace(/^---+$/gm, '');
           
-          // 既存の内容が含まれているか確認
-          const originalContentStart = block.writtenContent.trim().substring(0, 100);
-          const hasOriginalContent = cleanedResult.includes(originalContentStart);
+          // 既存の内容が含まれているか確認（開始部分と終了部分の両方を確認）
+          const originalContent = block.writtenContent.trim();
+          const originalContentStart = originalContent.substring(0, 100);
+          const originalContentEnd = originalContent.substring(Math.max(0, originalContent.length - 100));
+          const hasOriginalContentStart = cleanedResult.includes(originalContentStart);
+          const hasOriginalContentEnd = cleanedResult.includes(originalContentEnd);
           
           // 「※ここにセールス文を書く」が含まれているか確認
           const hasSalesMarker = cleanedResult.includes('※ここにセールス文を書く');
           
-          console.log(`[Sales Locations] Block ${block.id} - Has original content: ${hasOriginalContent}`);
+          console.log(`[Sales Locations] Block ${block.id} - Has original content start: ${hasOriginalContentStart}`);
+          console.log(`[Sales Locations] Block ${block.id} - Has original content end: ${hasOriginalContentEnd}`);
           console.log(`[Sales Locations] Block ${block.id} - Has sales marker: ${hasSalesMarker}`);
           console.log(`[Sales Locations] Block ${block.id} - Cleaned result length: ${cleanedResult.length}`);
+          console.log(`[Sales Locations] Block ${block.id} - Original content length: ${originalContent.length}`);
           console.log(`[Sales Locations] Block ${block.id} - Cleaned result (first 500 chars):`, cleanedResult.substring(0, 500));
           
+          // 既存の内容の開始部分と終了部分の両方が含まれていることを確認
+          const hasOriginalContent = hasOriginalContentStart && hasOriginalContentEnd;
+          
           if (!hasOriginalContent) {
-            // 既存の内容が含まれていない場合は警告し、既存の内容をそのまま返す
-            console.warn(`既存の内容が保持されていない可能性があります。ブロックID: ${block.id}`);
+            // 既存の内容が完全に保持されていない場合は警告し、元の内容を返す
+            console.warn(`既存の内容が完全に保持されていない可能性があります。ブロックID: ${block.id}`);
             console.warn(`元の内容の最初の100文字: ${originalContentStart}`);
+            console.warn(`元の内容の最後の100文字: ${originalContentEnd}`);
             console.warn(`APIレスポンスの最初の500文字: ${cleanedResult.substring(0, 500)}`);
-            // 既存の内容をそのまま返す（安全策）
+            console.warn(`APIレスポンスの最後の500文字: ${cleanedResult.substring(Math.max(0, cleanedResult.length - 500))}`);
+            // 安全のため、元の内容を返す
+            console.log(`[Sales Locations] Block ${block.id} - Returning original content (content not fully preserved)`);
             results[block.id] = block.writtenContent;
           } else {
             // 既存の内容が含まれている場合
