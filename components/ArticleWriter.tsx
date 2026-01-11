@@ -65,21 +65,31 @@ export default function ArticleWriter({ articleData, onSaveArticle }: ArticleWri
             const blocksWithContent = parsed.h2Blocks.filter((block: any) => block.writtenContent && block.writtenContent.trim().length > 0);
             setH2Blocks(parsed.h2Blocks);
             
-            // デバッグログ（開発時のみ）
-            if (process.env.NODE_ENV === 'development') {
-              console.log(`[Load] Loaded h2Blocks (${blocksWithContent.length} blocks with content) from ${savedDataKey}`);
-              console.log(`[Load] Sample writtenContent length:`, parsed.h2Blocks[0]?.writtenContent?.length || 0);
+            // デバッグログ（常に表示）
+            console.log(`[Load] ✅ Loaded h2Blocks (${blocksWithContent.length} blocks with content) from ${savedDataKey}`);
+            if (blocksWithContent.length > 0) {
+              console.log(`[Load] Sample writtenContent length:`, blocksWithContent[0].writtenContent.length);
+              console.log(`[Load] Sample writtenContent (first 200 chars):`, blocksWithContent[0].writtenContent.substring(0, 200));
+            } else {
+              console.warn(`[Load] ⚠️ No blocks with content found in saved data`);
             }
+          } else {
+            console.warn(`[Load] ⚠️ No h2Blocks found in saved data from ${savedDataKey}`);
           }
         } else {
           // localStorageにデータがない場合は、articleDataから読み込む
+          console.log(`[Load] ⚠️ No saved data found in localStorage, using articleData`);
           if (articleData.title) setTitle(articleData.title);
           if (articleData.structure) setStructure(articleData.structure);
           if (articleData.intro) setIntro(articleData.intro);
           if (articleData.introHtmlContent) setIntroHtmlContent(articleData.introHtmlContent);
           if (articleData.description) setDescription(articleData.description);
           if (articleData.h2Blocks && articleData.h2Blocks.length > 0) {
+            const blocksWithContent = articleData.h2Blocks.filter((block: any) => block.writtenContent && block.writtenContent.trim().length > 0);
             setH2Blocks(articleData.h2Blocks);
+            console.log(`[Load] Loaded ${blocksWithContent.length} blocks with content from articleData`);
+          } else {
+            console.warn(`[Load] ⚠️ No h2Blocks found in articleData`);
           }
         }
       } catch (error) {

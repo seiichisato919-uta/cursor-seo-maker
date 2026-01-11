@@ -38,11 +38,37 @@ export default function ArticleList({ onSelectArticle, onNewArticle }: ArticleLi
   };
 
   const handleSelectArticle = (article: ArticleListItem) => {
-    // 記事データを復元（articleIdも含める）
+    // まず、localStorageから最新の自動保存データを読み込む（執筆内容が含まれている）
+    try {
+      const savedDataKey = `seo-article-data-${article.id}`;
+      const savedData = localStorage.getItem(savedDataKey);
+      
+      if (savedData) {
+        const parsed = JSON.parse(savedData);
+        // 最新のデータを優先的に使用（articleIdも含める）
+        const articleDataWithId = {
+          ...parsed,
+          articleId: article.id,
+        };
+        
+        // デバッグログ
+        const blocksWithContent = parsed.h2Blocks?.filter((b: any) => b.writtenContent && b.writtenContent.trim().length > 0) || [];
+        console.log(`[ArticleList] Loaded latest data: ${blocksWithContent.length} blocks with content from ${savedDataKey}`);
+        
+        onSelectArticle(articleDataWithId);
+        return;
+      }
+    } catch (error) {
+      console.error('[ArticleList] Error loading latest data:', error);
+    }
+    
+    // localStorageに最新データがない場合は、記事一覧のデータを使用（フォールバック）
     const articleDataWithId = {
       ...article.data,
       articleId: article.id,
     };
+    
+    console.log(`[ArticleList] Using article list data (no latest data found)`);
     onSelectArticle(articleDataWithId);
   };
 
