@@ -201,6 +201,15 @@ ${data.structure ? `記事構成（参考・該当H2ブロックの前後のみ�
       content = await callGemini(finalPrompt, 'gemini-3-pro-preview', images.length > 0 ? images : undefined, 55000);
     } catch (geminiError: any) {
       console.error('Gemini API error:', geminiError);
+      
+      // 429エラー（使用制限超過）の場合は、エラーメッセージをそのまま返す
+      if (geminiError.message?.includes('429') || geminiError.message?.includes('Too Many Requests') || geminiError.message?.includes('quota') || geminiError.message?.includes('使用制限')) {
+        return NextResponse.json(
+          { error: geminiError.message },
+          { status: 429 }
+        );
+      }
+      
       // タイムアウトエラーの場合は、より分かりやすいメッセージを返す
       if (geminiError.message && (geminiError.message.includes('timeout') || geminiError.message.includes('タイムアウト'))) {
         return NextResponse.json(

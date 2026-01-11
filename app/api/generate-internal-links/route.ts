@@ -175,12 +175,19 @@ export async function POST(request: NextRequest) {
             console.log(`[Internal Links] Block ${block.id} - Raw API response contains "参考記事:": ${result?.includes('参考記事:') || false}`);
           } catch (geminiError: any) {
             console.error(`Gemini API error for block ${block.id}:`, geminiError);
+            
             // タイムアウトエラーの場合は、既存の内容をそのまま返す
             if (geminiError.message && geminiError.message.includes('timeout')) {
               console.warn(`Timeout for block ${block.id}, returning original content`);
               results[block.id] = block.writtenContent;
               continue;
             }
+            
+            // 429エラー（使用制限超過）の場合は、エラーメッセージをそのまま返す
+            if (geminiError.message?.includes('429') || geminiError.message?.includes('Too Many Requests') || geminiError.message?.includes('quota') || geminiError.message?.includes('使用制限')) {
+              throw new Error(geminiError.message);
+            }
+            
             throw new Error(`Gemini API呼び出しに失敗しました: ${geminiError.message || '不明なエラー'}`);
           }
           
@@ -410,6 +417,15 @@ export async function POST(request: NextRequest) {
       result = await callGemini(fullPrompt, 'gemini-3-pro-preview', undefined, 55000);
     } catch (geminiError: any) {
       console.error('Gemini API error:', geminiError);
+      
+      // 429エラー（使用制限超過）の場合は、エラーメッセージをそのまま返す
+      if (geminiError.message?.includes('429') || geminiError.message?.includes('Too Many Requests') || geminiError.message?.includes('quota') || geminiError.message?.includes('使用制限')) {
+        return NextResponse.json(
+          { error: geminiError.message },
+          { status: 429 }
+        );
+      }
+      
       // タイムアウトエラーの場合は、より詳細なエラーメッセージを返す
       if (geminiError.message && geminiError.message.includes('timeout')) {
         return NextResponse.json(

@@ -139,6 +139,12 @@ export async function POST(request: NextRequest) {
             console.log(`[Supervisor Comments] Block ${block.id} - Raw API response contains "<佐藤誠一吹き出し>": ${result?.includes('<佐藤誠一吹き出し>') || false}`);
           } catch (geminiError: any) {
             console.error(`Gemini API error for block ${block.id}:`, geminiError);
+            
+            // 429エラー（使用制限超過）の場合は、エラーメッセージをそのまま返す
+            if (geminiError.message?.includes('429') || geminiError.message?.includes('Too Many Requests') || geminiError.message?.includes('quota') || geminiError.message?.includes('使用制限')) {
+              throw new Error(geminiError.message);
+            }
+            
             throw new Error(`Gemini API呼び出しに失敗しました: ${geminiError.message || '不明なエラー'}`);
           }
           
