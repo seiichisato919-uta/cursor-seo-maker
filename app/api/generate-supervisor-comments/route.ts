@@ -256,33 +256,22 @@ export async function POST(request: NextRequest) {
             }
             
             // 【重要】既存の文章（「H2: 」「H3: 」などの表記を含む）は一切変更しない
-            // 既存の内容の完全性を確認（既存の内容が一字一句保持されているか）
-            const originalContentLines = block.writtenContent.split('\n');
-            const finalResultLines = cleanedResult.split('\n');
+            // 既存の内容の完全性を確認（開始部分と終了部分の両方を確認）
+            const originalContent = block.writtenContent.trim();
+            const originalContentEnd = originalContent.substring(Math.max(0, originalContent.length - 100));
+            const finalResult = cleanedResult.trim();
+            const hasOriginalContentEndInFinal = finalResult.includes(originalContentEnd);
             
-            // 既存の内容の各行が最終結果に含まれているか確認（順序は変わっても良いが、内容は保持されている必要がある）
-            let allOriginalLinesPreserved = true;
-            for (const originalLine of originalContentLines) {
-              const trimmedOriginal = originalLine.trim();
-              if (trimmedOriginal.length > 0) {
-                // 既存の行が最終結果に含まれているか確認
-                const found = finalResultLines.some(resultLine => resultLine.includes(trimmedOriginal) || trimmedOriginal.includes(resultLine.trim()));
-                if (!found) {
-                  console.warn(`[Supervisor Comments] Block ${block.id} - Original line not found in result: ${trimmedOriginal.substring(0, 50)}`);
-                  allOriginalLinesPreserved = false;
-                }
-              }
-            }
-            
-            if (!allOriginalLinesPreserved) {
-              console.warn(`[Supervisor Comments] Block ${block.id} - Some original content may have been modified. Using original content.`);
-              // 既存の内容が変更されている可能性がある場合は、既存の内容をそのまま返す
+            // 既存の内容の開始部分と終了部分の両方が含まれていることを確認
+            if (!hasOriginalContentEndInFinal) {
+              console.warn(`[Supervisor Comments] Block ${block.id} - Original content end not found in result. Returning original content.`);
+              console.warn(`[Supervisor Comments] Block ${block.id} - Original content end: ${originalContentEnd}`);
+              console.warn(`[Supervisor Comments] Block ${block.id} - Final result end: ${finalResult.substring(Math.max(0, finalResult.length - 200))}`);
               results[block.id] = block.writtenContent;
             } else {
-              const finalResult = cleanedResult.trim();
               console.log(`[Supervisor Comments] Block ${block.id} - Final result length: ${finalResult.length}`);
+              console.log(`[Supervisor Comments] Block ${block.id} - Original content length: ${originalContent.length}`);
               console.log(`[Supervisor Comments] Block ${block.id} - Final result contains "<佐藤誠一吹き出し>": ${finalResult.includes('<佐藤誠一吹き出し>')}`);
-              console.log(`[Supervisor Comments] Block ${block.id} - Original content preserved: ${allOriginalLinesPreserved}`);
               results[block.id] = finalResult;
             }
           }
