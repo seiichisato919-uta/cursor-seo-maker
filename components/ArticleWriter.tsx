@@ -122,11 +122,17 @@ export default function ArticleWriter({ articleData, onSaveArticle }: ArticleWri
 
   // タイトルが変更されたときに自動保存（debounce付き）
   useEffect(() => {
-    if (!title && !articleData?.articleId) return;
+    const articleId = currentArticleId || articleData?.articleId || `article-${Date.now()}`;
+    
+    // articleIdが設定されていない場合は、新規IDを生成して設定
+    if (!currentArticleId && !articleData?.articleId) {
+      setCurrentArticleId(articleId);
+    }
+    
+    if (!title && !articleData?.articleId && h2Blocks.length === 0) return;
     
     const timeoutId = setTimeout(() => {
       try {
-        const articleId = currentArticleId;
         const dataToSave = {
           ...articleData,
           articleId,
@@ -142,12 +148,23 @@ export default function ArticleWriter({ articleData, onSaveArticle }: ArticleWri
           description,
           savedAt: new Date().toISOString(),
         };
-        // articleIdに基づいて保存
-        localStorage.setItem(`seo-article-data-${articleId}`, JSON.stringify(dataToSave));
-      } catch (error) {
-        console.error('Error auto-saving title:', error);
+        
+        const saveKey = `seo-article-data-${articleId}`;
+        const jsonString = JSON.stringify(dataToSave);
+        localStorage.setItem(saveKey, jsonString);
+        
+        // 保存確認
+        const savedData = localStorage.getItem(saveKey);
+        if (savedData) {
+          console.log(`[Auto-save] ✅ Saved title change to ${saveKey}`);
+        }
+      } catch (error: any) {
+        console.error('[Auto-save] ❌ Error auto-saving title:', error);
+        if (error.name === 'QuotaExceededError' || error.message?.includes('quota')) {
+          console.error('[Auto-save] Storage quota exceeded.');
+        }
       }
-    }, 1000); // 1秒後に保存
+    }, 2000); // 2秒後に保存
 
     return () => clearTimeout(timeoutId);
   }, [title, articleData, h2Blocks, intro, introHtmlContent, description, structure, currentArticleId]);
@@ -155,22 +172,22 @@ export default function ArticleWriter({ articleData, onSaveArticle }: ArticleWri
   // H2ブロックが変更されたときに自動保存（debounce付き）
   useEffect(() => {
     // currentArticleIdを使用（確実に設定されている）
-    const articleId = currentArticleId || articleData?.articleId;
+    const articleId = currentArticleId || articleData?.articleId || `article-${Date.now()}`;
     
-    // h2Blocksが空で、titleもない場合は保存しない
-    if (h2Blocks.length === 0 && !title) return;
+    // articleIdが設定されていない場合は、新規IDを生成して設定
+    if (!currentArticleId && !articleData?.articleId) {
+      setCurrentArticleId(articleId);
+    }
     
-    // articleIdが設定されていない場合は保存しない
-    if (!articleId) {
-      console.warn('[Auto-save] ArticleId not set, skipping save');
+    // 執筆内容があるブロックがある場合のみ保存
+    const blocksWithContent = h2Blocks.filter(block => block.writtenContent && block.writtenContent.trim().length > 0);
+    if (blocksWithContent.length === 0 && !title && !structure) {
+      // 何も内容がない場合は保存しない
       return;
     }
     
     const timeoutId = setTimeout(() => {
       try {
-        // writtenContentが含まれているブロックの数を確認
-        const blocksWithContent = h2Blocks.filter(block => block.writtenContent && block.writtenContent.trim().length > 0);
-        
         const dataToSave = {
           ...articleData,
           articleId,
@@ -189,30 +206,57 @@ export default function ArticleWriter({ articleData, onSaveArticle }: ArticleWri
         
         // articleIdに基づいて保存
         const saveKey = `seo-article-data-${articleId}`;
-        localStorage.setItem(saveKey, JSON.stringify(dataToSave));
+        const jsonString = JSON.stringify(dataToSave);
         
-        // デバッグログ（常に表示）
-        console.log(`[Auto-save] Saved h2Blocks (${blocksWithContent.length} blocks with content) to ${saveKey}`);
-        if (blocksWithContent.length > 0) {
-          console.log(`[Auto-save] Sample writtenContent length:`, blocksWithContent[0].writtenContent.length);
+        // 保存前にデータサイズを確認
+        const dataSize = new Blob([jsonString]).size;
+        const maxSize = 5 * 1024 * 1024; // 5MB制限
+        
+        if (dataSize > maxSize) {
+          console.warn(`[Auto-save] Data size (${(dataSize / 1024 / 1024).toFixed(2)}MB) exceeds limit, skipping save`);
+          return;
+        }
+        
+        localStorage.setItem(saveKey, jsonString);
+        
+        // 保存されたデータを確認
+        const savedData = localStorage.getItem(saveKey);
+        if (savedData) {
+          const parsed = JSON.parse(savedData);
+          const savedBlocksWithContent = parsed.h2Blocks?.filter((b: any) => b.writtenContent && b.writtenContent.trim().length > 0) || [];
+          console.log(`[Auto-save] ✅ Saved successfully: ${savedBlocksWithContent.length} blocks with content to ${saveKey}`);
+          if (savedBlocksWithContent.length > 0) {
+            console.log(`[Auto-save] Sample writtenContent length:`, savedBlocksWithContent[0].writtenContent.length);
+          }
+        } else {
+          console.error(`[Auto-save] ❌ Failed to verify saved data for ${saveKey}`);
         }
       } catch (error: any) {
-        console.error('Error auto-saving h2Blocks:', error);
+        console.error('[Auto-save] ❌ Error auto-saving h2Blocks:', error);
         // localStorageの容量制限エラーの場合
         if (error.name === 'QuotaExceededError' || error.message?.includes('quota')) {
-          alert('保存領域が不足しています。古い記事を削除してください。');
+          console.error('[Auto-save] Storage quota exceeded. Please delete old articles.');
+          // アラートは頻繁に出ると煩わしいので、コンソールログのみ
         }
       }
-    }, 1000); // 1秒後に保存
+    }, 2000); // 2秒後に保存（1秒から2秒に延長して、頻繁な保存を抑制）
 
     return () => clearTimeout(timeoutId);
   }, [h2Blocks, articleData, title, intro, introHtmlContent, description, structure, currentArticleId]);
 
   // 導入文とディスクリプションが変更されたときに自動保存（debounce付き）
   useEffect(() => {
+    const articleId = currentArticleId || articleData?.articleId || `article-${Date.now()}`;
+    
+    // articleIdが設定されていない場合は、新規IDを生成して設定
+    if (!currentArticleId && !articleData?.articleId) {
+      setCurrentArticleId(articleId);
+    }
+    
+    if (!intro && !description && !introHtmlContent) return;
+    
     const timeoutId = setTimeout(() => {
       try {
-        const articleId = currentArticleId;
         const dataToSave = {
           ...articleData,
           articleId,
@@ -228,12 +272,23 @@ export default function ArticleWriter({ articleData, onSaveArticle }: ArticleWri
           description,
           savedAt: new Date().toISOString(),
         };
-        // articleIdに基づいて保存
-        localStorage.setItem(`seo-article-data-${articleId}`, JSON.stringify(dataToSave));
-      } catch (error) {
-        console.error('Error auto-saving intro/description:', error);
+        
+        const saveKey = `seo-article-data-${articleId}`;
+        const jsonString = JSON.stringify(dataToSave);
+        localStorage.setItem(saveKey, jsonString);
+        
+        // 保存確認
+        const savedData = localStorage.getItem(saveKey);
+        if (savedData) {
+          console.log(`[Auto-save] ✅ Saved intro/description change to ${saveKey}`);
+        }
+      } catch (error: any) {
+        console.error('[Auto-save] ❌ Error auto-saving intro/description:', error);
+        if (error.name === 'QuotaExceededError' || error.message?.includes('quota')) {
+          console.error('[Auto-save] Storage quota exceeded.');
+        }
       }
-    }, 1000); // 1秒後に保存
+    }, 2000); // 2秒後に保存
 
     return () => clearTimeout(timeoutId);
   }, [intro, introHtmlContent, description, articleData, title, h2Blocks, structure, currentArticleId]);
