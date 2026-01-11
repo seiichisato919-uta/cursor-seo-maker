@@ -304,9 +304,6 @@ export async function POST(request: NextRequest) {
             }
             
             // 既存の内容の開始位置と終了位置を特定して、その範囲内の内容を保持
-            const originalContent = block.writtenContent.trim();
-            const originalContentEnd = originalContent.substring(Math.max(0, originalContent.length - 100));
-            const originalStartIndex = cleanedResult.indexOf(originalContentStart);
             const originalEndIndex = cleanedResult.lastIndexOf(originalContentEnd);
             
             // 既存の内容の範囲が正しく特定できているか確認
