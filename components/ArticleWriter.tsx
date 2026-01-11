@@ -776,6 +776,108 @@ export default function ArticleWriter({ articleData, onSaveArticle }: ArticleWri
     }
   }, [h2Blocks]);
 
+  // 特定のH2ブロックに対して内部リンクを提案してもらう
+  const handleGenerateInternalLinksForBlock = useCallback(async (blockId: string) => {
+    const block = h2Blocks.find(b => b.id === blockId);
+    if (!block || !block.writtenContent || block.writtenContent.trim().length === 0) {
+      alert('執筆内容がありません。まず記事を執筆してください。');
+      return;
+    }
+    
+    // 既に内部リンクが含まれている場合はスキップ
+    const hasInternalLink = block.writtenContent.includes('参考記事：') || block.writtenContent.includes('参考記事:');
+    if (hasInternalLink) {
+      alert('このブロックには既に内部リンクが追加されています。');
+      return;
+    }
+    
+    setInternalLinkLoading(true);
+    console.log(`[Internal Links] Starting internal link generation for block ${blockId}...`);
+    try {
+      const response = await fetch('/api/generate-internal-links', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          h2Blocks: [{
+            id: block.id,
+            h2Title: block.h2Title,
+            h3s: block.h3s,
+            writtenContent: block.writtenContent,
+          }],
+        }),
+      });
+
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        const text = await response.text();
+        console.error('Non-JSON response:', text.substring(0, 500));
+        throw new Error(`サーバーエラーが発生しました。レスポンスがJSON形式ではありません。ステータス: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log(`[Internal Links] Received API response for block ${blockId}:`, {
+        ok: response.ok,
+        status: response.status,
+        hasH2BlocksWithLinks: !!data.h2BlocksWithLinks,
+      });
+      
+      if (!response.ok) {
+        throw new Error(data.error || `内部リンクの生成に失敗しました（ステータス: ${response.status}）`);
+      }
+
+      if (data.error) {
+        throw new Error(data.error);
+      }
+
+      if (data.h2BlocksWithLinks && data.h2BlocksWithLinks[blockId]) {
+        const updatedContent = data.h2BlocksWithLinks[blockId];
+        console.log(`[Internal Links] Updating block ${blockId} with new content`);
+        
+        setH2Blocks(prevBlocks => {
+          const updatedBlocks = prevBlocks.map(b =>
+            b.id === blockId ? { ...b, writtenContent: updatedContent } : b
+          );
+          
+          // 内部リンク追加後、即座に保存
+          try {
+            const articleId = articleData.articleId || currentArticleId || `article-${Date.now()}`;
+            const dataToSave = {
+              ...articleData,
+              articleId,
+              title,
+              structure,
+              h2Blocks: updatedBlocks.map(block => ({
+                ...block,
+                writtenContent: block.writtenContent || '',
+                attachedFiles: [],
+              })),
+              intro,
+              introHtmlContent,
+              description,
+              savedAt: new Date().toISOString(),
+            };
+            const saveKey = `seo-article-data-${articleId}`;
+            localStorage.setItem(saveKey, JSON.stringify(dataToSave));
+            console.log(`[Internal Links] Immediately saved block ${blockId} to ${saveKey}`);
+          } catch (saveError) {
+            console.error('[Internal Links] Error saving:', saveError);
+          }
+          
+          return updatedBlocks;
+        });
+        
+        alert('内部リンクを追加しました。');
+      } else {
+        alert('内部リンクの提案が生成されませんでした');
+      }
+    } catch (error: any) {
+      console.error('Error generating internal links:', error);
+      alert(error.message || '内部リンクの生成に失敗しました');
+    } finally {
+      setInternalLinkLoading(false);
+    }
+  }, [h2Blocks, articleData, currentArticleId, title, structure, intro, introHtmlContent, description]);
+
   // セールス箇所を提案してもらう
   const handleGenerateSalesLocations = useCallback(async () => {
     setSalesLocationLoading(true);
@@ -909,6 +1011,119 @@ export default function ArticleWriter({ articleData, onSaveArticle }: ArticleWri
       setSalesLocationLoading(false);
     }
   }, [h2Blocks, articleData]);
+
+  // 特定のH2ブロックに対してセールス箇所を提案してもらう
+  const handleGenerateSalesLocationsForBlock = useCallback(async (blockId: string) => {
+    const block = h2Blocks.find(b => b.id === blockId);
+    if (!block || !block.writtenContent || block.writtenContent.trim().length === 0) {
+      alert('執筆内容がありません。まず記事を執筆してください。');
+      return;
+    }
+    
+    // 既にセールスマーカーが含まれている場合はスキップ
+    const hasSalesMarker = block.writtenContent.includes('※ここにセールス文を書く');
+    if (hasSalesMarker) {
+      alert('このブロックには既にセールス箇所が追加されています。');
+      return;
+    }
+    
+    // 記事全体で既に2箇所以上ある場合はスキップ
+    const allBlocks = h2Blocks || [];
+    const totalSalesMarkers = allBlocks.reduce((count: number, b: H2Block) => {
+      if (b.writtenContent && b.writtenContent.includes('※ここにセールス文を書く')) {
+        return count + (b.writtenContent.match(/※ここにセールス文を書く/g) || []).length;
+      }
+      return count;
+    }, 0);
+    
+    if (totalSalesMarkers >= 2) {
+      alert('記事全体で既に2箇所以上のセールス箇所が追加されています。');
+      setSalesLocationLoading(false);
+      return;
+    }
+    
+    setSalesLocationLoading(true);
+    try {
+      const response = await fetch('/api/generate-sales-locations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          h2Blocks: [{
+            id: block.id,
+            h2Title: block.h2Title,
+            h3s: block.h3s,
+            writtenContent: block.writtenContent,
+          }],
+          productUrl: articleData?.productUrl,
+          articleTopic: articleData?.mainKeyword,
+        }),
+      });
+
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        const text = await response.text();
+        console.error('Non-JSON response:', text.substring(0, 500));
+        throw new Error(`サーバーエラーが発生しました。レスポンスがJSON形式ではありません。ステータス: ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error || `セールス箇所の生成に失敗しました（ステータス: ${response.status}）`);
+      }
+
+      if (data.error) {
+        throw new Error(data.error);
+      }
+
+      if (data.h2BlocksWithSalesMarkers && data.h2BlocksWithSalesMarkers[blockId]) {
+        const updatedContent = data.h2BlocksWithSalesMarkers[blockId];
+        console.log(`[Sales Locations] Updating block ${blockId} with new content`);
+        
+        setH2Blocks(prevBlocks => {
+          const updatedBlocks = prevBlocks.map(b =>
+            b.id === blockId ? { ...b, writtenContent: updatedContent } : b
+          );
+          
+          // セールス箇所追加後、即座に保存
+          try {
+            const articleId = articleData.articleId || currentArticleId || `article-${Date.now()}`;
+            const dataToSave = {
+              ...articleData,
+              articleId,
+              title,
+              structure,
+              h2Blocks: updatedBlocks.map(block => ({
+                ...block,
+                writtenContent: block.writtenContent || '',
+                attachedFiles: [],
+              })),
+              intro,
+              introHtmlContent,
+              description,
+              savedAt: new Date().toISOString(),
+            };
+            const saveKey = `seo-article-data-${articleId}`;
+            localStorage.setItem(saveKey, JSON.stringify(dataToSave));
+            console.log(`[Sales Locations] Immediately saved block ${blockId} to ${saveKey}`);
+          } catch (saveError) {
+            console.error('[Sales Locations] Error saving:', saveError);
+          }
+          
+          return updatedBlocks;
+        });
+        
+        alert('セールス箇所を追加しました。');
+      } else {
+        alert('セールス箇所の提案が生成されませんでした');
+      }
+    } catch (error: any) {
+      console.error('Error generating sales locations:', error);
+      alert(error.message || 'セールス箇所の生成に失敗しました');
+    } finally {
+      setSalesLocationLoading(false);
+    }
+  }, [h2Blocks, articleData, currentArticleId, title, structure, intro, introHtmlContent, description]);
 
   // 導入文・セールス文・まとめ文・ディスクリプションを執筆する
   const handleGenerateIntroSalesSummaryDesc = useCallback(async () => {
@@ -1151,6 +1366,111 @@ export default function ArticleWriter({ articleData, onSaveArticle }: ArticleWri
       setSupervisorCommentLoading(false);
     }
   }, [h2Blocks]);
+
+  // 特定のH2ブロックに対して監修者の吹き出しを執筆する
+  const handleGenerateSupervisorCommentsForBlock = useCallback(async (blockId: string) => {
+    const block = h2Blocks.find(b => b.id === blockId);
+    if (!block || !block.writtenContent || block.writtenContent.trim().length === 0) {
+      alert('執筆内容がありません。まず記事を執筆してください。');
+      return;
+    }
+    
+    // 「導入文」「ディスクリプション」「まとめ」には監修者の吹き出しを書かない
+    const h2Title = block.h2Title || '';
+    const isIntroBlock = h2Title.includes('導入') || h2Title.includes('導入文');
+    const isDescriptionBlock = h2Title.includes('ディスクリプション') || h2Title.includes('description');
+    const isSummaryBlock = h2Title.includes('まとめ');
+    if (isIntroBlock || isDescriptionBlock || isSummaryBlock) {
+      alert('このブロックには監修者の吹き出しを追加できません。');
+      return;
+    }
+    
+    // 既に監修者の吹き出しが含まれている場合はスキップ
+    const hasSupervisorComment = block.writtenContent.includes('<佐藤誠一吹き出し>');
+    if (hasSupervisorComment) {
+      alert('このブロックには既に監修者の吹き出しが追加されています。');
+      return;
+    }
+    
+    setSupervisorCommentLoading(true);
+    try {
+      const response = await fetch('/api/generate-supervisor-comments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          h2Blocks: [{
+            id: block.id,
+            h2Title: block.h2Title,
+            h3s: block.h3s,
+            writtenContent: block.writtenContent,
+          }],
+        }),
+      });
+
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        const text = await response.text();
+        console.error('Non-JSON response:', text.substring(0, 500));
+        throw new Error(`サーバーエラーが発生しました。レスポンスがJSON形式ではありません。ステータス: ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error || `監修者の吹き出しの生成に失敗しました（ステータス: ${response.status}）`);
+      }
+      if (data.error) {
+        throw new Error(data.error);
+      }
+
+      if (data.h2BlocksWithComments && data.h2BlocksWithComments[blockId]) {
+        const updatedContent = data.h2BlocksWithComments[blockId];
+        console.log(`[Supervisor Comments] Updating block ${blockId} with new content`);
+        
+        setH2Blocks(prevBlocks => {
+          const updatedBlocks = prevBlocks.map(b =>
+            b.id === blockId ? { ...b, writtenContent: updatedContent } : b
+          );
+          
+          // 監修者の吹き出し追加後、即座に保存
+          try {
+            const articleId = articleData.articleId || currentArticleId || `article-${Date.now()}`;
+            const dataToSave = {
+              ...articleData,
+              articleId,
+              title,
+              structure,
+              h2Blocks: updatedBlocks.map(block => ({
+                ...block,
+                writtenContent: block.writtenContent || '',
+                attachedFiles: [],
+              })),
+              intro,
+              introHtmlContent,
+              description,
+              savedAt: new Date().toISOString(),
+            };
+            const saveKey = `seo-article-data-${articleId}`;
+            localStorage.setItem(saveKey, JSON.stringify(dataToSave));
+            console.log(`[Supervisor Comments] Immediately saved block ${blockId} to ${saveKey}`);
+          } catch (saveError) {
+            console.error('[Supervisor Comments] Error saving:', saveError);
+          }
+          
+          return updatedBlocks;
+        });
+        
+        alert('監修者の吹き出しを追加しました。');
+      } else {
+        alert('監修者の吹き出しが生成されませんでした');
+      }
+    } catch (error: any) {
+      console.error('Error generating supervisor comments:', error);
+      alert(error.message || '監修者の吹き出しの生成に失敗しました');
+    } finally {
+      setSupervisorCommentLoading(false);
+    }
+  }, [h2Blocks, articleData, currentArticleId, title, structure, intro, introHtmlContent, description]);
 
   // 保存機能（記事名を付けて保存）
   const handleSave = () => {
@@ -1565,14 +1885,41 @@ export default function ArticleWriter({ articleData, onSaveArticle }: ArticleWri
             />
           </div>
 
-          {/* 執筆ボタン */}
-          <div className="mb-3">
+          {/* 執筆ボタンとその他のボタン */}
+          <div className="mb-3 flex flex-wrap gap-2">
             <button
               onClick={() => handleWriteBlock(block.id)}
               disabled={writingLoading[block.id]}
               className="bg-blue-500 text-white px-4 py-2 rounded font-semibold hover:bg-blue-600 disabled:bg-gray-400 disabled:text-gray-200"
             >
               {writingLoading[block.id] ? '執筆中...' : '執筆する'}
+            </button>
+            
+            {/* 内部リンクを提案してもらうボタン */}
+            <button
+              onClick={() => handleGenerateInternalLinksForBlock(block.id)}
+              disabled={internalLinkLoading || !block.writtenContent || block.writtenContent.trim().length === 0}
+              className="bg-green-500 text-white px-4 py-2 rounded font-semibold hover:bg-green-600 disabled:bg-gray-400 disabled:text-gray-200 text-sm"
+            >
+              {internalLinkLoading ? '内部リンク提案中...' : '内部リンクを提案してもらう'}
+            </button>
+            
+            {/* セールス箇所を提案してもらうボタン */}
+            <button
+              onClick={() => handleGenerateSalesLocationsForBlock(block.id)}
+              disabled={salesLocationLoading || !block.writtenContent || block.writtenContent.trim().length === 0}
+              className="bg-purple-500 text-white px-4 py-2 rounded font-semibold hover:bg-purple-600 disabled:bg-gray-400 disabled:text-gray-200 text-sm"
+            >
+              {salesLocationLoading ? 'セールス箇所提案中...' : 'セールス箇所を提案してもらう'}
+            </button>
+            
+            {/* 監修者の吹き出しを執筆するボタン */}
+            <button
+              onClick={() => handleGenerateSupervisorCommentsForBlock(block.id)}
+              disabled={supervisorCommentLoading || !block.writtenContent || block.writtenContent.trim().length === 0}
+              className="bg-orange-500 text-white px-4 py-2 rounded font-semibold hover:bg-orange-600 disabled:bg-gray-400 disabled:text-gray-200 text-sm"
+            >
+              {supervisorCommentLoading ? '監修者の吹き出し執筆中...' : '監修者の吹き出しを執筆する'}
             </button>
           </div>
 
