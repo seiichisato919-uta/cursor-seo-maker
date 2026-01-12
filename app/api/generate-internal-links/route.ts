@@ -379,9 +379,28 @@ export async function POST(request: NextRequest) {
                   console.log(`[Internal Links] Block ${block.id} - Returning API response with internal links`);
                   results[block.id] = finalResult;
                 } else {
-                  // 内部リンクが含まれていない場合は、元の内容を返す
-                  console.warn(`[Internal Links] Block ${block.id} - No internal links found in result. Returning original content.`);
-                  results[block.id] = block.writtenContent;
+                  // 内部リンクが含まれていない場合でも、Gemini APIが何か変更を加えている可能性がある
+                  // 元の内容と比較して、実際に変更があるかどうかを確認
+                  const contentActuallyChanged = finalResult !== originalContent;
+                  
+                  if (contentActuallyChanged) {
+                    // 内容が変更されている場合は、Gemini APIが何か処理をしている可能性がある
+                    // しかし内部リンクが含まれていないので、警告を出して元の内容を返す
+                    console.warn(`[Internal Links] Block ${block.id} - Content changed but no internal links found.`);
+                    console.warn(`[Internal Links] Block ${block.id} - This suggests Gemini API processed the content but did not add internal links.`);
+                    console.warn(`[Internal Links] Block ${block.id} - Returning original content to preserve data integrity.`);
+                    results[block.id] = block.writtenContent;
+                  } else {
+                    // 内容が変更されていない = Gemini APIが元の内容をそのまま返している
+                    console.error(`[Internal Links] Block ${block.id} - ERROR: Gemini API returned unchanged content with no internal links!`);
+                    console.error(`[Internal Links] Block ${block.id} - This means Gemini API did not process the request properly.`);
+                    console.error(`[Internal Links] Block ${block.id} - Possible causes:`);
+                    console.error(`[Internal Links] Block ${block.id} - 1. Article list is empty or not loaded`);
+                    console.error(`[Internal Links] Block ${block.id} - 2. Prompt is too long and instructions were ignored`);
+                    console.error(`[Internal Links] Block ${block.id} - 3. Gemini API did not understand the instructions`);
+                    console.error(`[Internal Links] Block ${block.id} - 4. Content is too long and was truncated`);
+                    results[block.id] = block.writtenContent;
+                  }
                 }
               } else {
                 // 抽出した内容が短すぎる場合は、元の内容を返す
