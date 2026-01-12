@@ -306,8 +306,30 @@ export default function ArticleWriter({ articleData, onSaveArticle }: ArticleWri
   // 記事構成を解析してH2ブロックに分割
   useEffect(() => {
     if (structure) {
-      const blocks = parseStructureToH2Blocks(structure);
-      setH2Blocks(blocks);
+      // 既存のh2BlocksのwrittenContentを保持しながら、新しいブロック構造を作成
+      setH2Blocks(prevBlocks => {
+        const newBlocks = parseStructureToH2Blocks(structure);
+        
+        // 既存のブロックのwrittenContentを新しいブロックにマージ
+        const mergedBlocks = newBlocks.map(newBlock => {
+          // 同じh2Titleを持つ既存のブロックを探す
+          const existingBlock = prevBlocks.find(prev => prev.h2Title === newBlock.h2Title);
+          if (existingBlock && existingBlock.writtenContent) {
+            // 既存のwrittenContentを保持
+            return {
+              ...newBlock,
+              writtenContent: existingBlock.writtenContent,
+              editingInstruction: existingBlock.editingInstruction || newBlock.editingInstruction,
+              htmlContent: existingBlock.htmlContent || newBlock.htmlContent,
+            };
+          }
+          return newBlock;
+        });
+        
+        console.log(`[Structure Parse] Merged ${mergedBlocks.length} blocks, preserving writtenContent from ${prevBlocks.filter(b => b.writtenContent).length} existing blocks`);
+        
+        return mergedBlocks;
+      });
     }
   }, [structure]);
 
