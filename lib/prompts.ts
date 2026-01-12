@@ -482,17 +482,26 @@ ${descSample ? `### ディスクリプションのお手本\n${descSample}\n\n` 
  * 監修者吹き出しプロンプトを取得
  */
 export function getSupervisorCommentPrompt(data: { article: string; h2Title?: string }): string {
-  const basePrompt = loadPromptFile('監修者吹き出しプロンプト');
+  // プロンプトを簡素化（タイムアウト対策）
+  // 元のプロンプトファイルは読み込まず、最小限の指示のみ
   
-  if (!basePrompt) {
-    return `監修者の吹き出しを執筆してください。`;
-  }
+  // 記事内容が長すぎる場合は先頭4000文字に制限（タイムアウト対策）
+  const articleToProcess = data.article && data.article.length > 4000 
+    ? data.article.substring(0, 4000) + '\n\n（...以下省略）'
+    : data.article;
   
-  return `${basePrompt}
+  return `## タスク
+既存の記事内容に監修者の吹き出しを挿入してください。
 
-記事内容:
-${data.article}
-${data.h2Title ? `\n見出し: ${data.h2Title}` : ''}`;
+## 記事内容
+${articleToProcess}
+${data.h2Title ? `\n見出し: ${data.h2Title}` : ''}
+
+## 出力形式
+1. 既存の記事内容をそのまま保持
+2. 適切な箇所に「<佐藤誠一吹き出し>コメント</佐藤誠一吹き出し>」を挿入
+3. 見出しや分析結果は一切出力しない
+4. 既存の記事内容に監修者の吹き出しを挿入した結果のみを出力`;
 }
 
 /**
