@@ -336,9 +336,10 @@ export function getInternalLinkPrompt(data: { article: string; spreadsheetData?:
 ${articleList}`;
   }
   
-  // 記事内容が長すぎる場合は先頭2000文字に制限（タイムアウト対策）
-  const articleToProcess = data.article && data.article.length > 2000 
-    ? data.article.substring(0, 2000) + '\n\n（...以下省略）'
+  // 記事内容が長すぎる場合は先頭5000文字に制限（タイムアウト対策、ただし長い記事にも対応）
+  // H3が16個ある場合など、長い記事でも処理できるように5000文字に拡張
+  const articleToProcess = data.article && data.article.length > 5000 
+    ? data.article.substring(0, 5000) + '\n\n（...以下省略）'
     : data.article;
   
   return `${basePrompt}${spreadsheetSection}

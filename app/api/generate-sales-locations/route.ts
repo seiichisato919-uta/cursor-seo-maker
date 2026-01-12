@@ -70,10 +70,13 @@ export async function POST(request: NextRequest) {
             continue;
           }
 
-          // 記事内容が長すぎる場合は先頭2000文字に制限（タイムアウト対策）
-          const contentToProcess = block.writtenContent && block.writtenContent.length > 2000 
-            ? block.writtenContent.substring(0, 2000) + '\n\n（...以下省略）'
+          // 記事内容が長すぎる場合は先頭5000文字に制限（タイムアウト対策、ただし長い記事にも対応）
+          // H3が16個ある場合など、長い記事でも処理できるように5000文字に拡張
+          const contentToProcess = block.writtenContent && block.writtenContent.length > 5000 
+            ? block.writtenContent.substring(0, 5000) + '\n\n（...以下省略）'
             : block.writtenContent || '';
+          
+          console.log(`[Sales Locations] Block ${block.id} - Content length: ${block.writtenContent?.length || 0}, Processing: ${contentToProcess.length}`);
           
           const blockArticle = `${contentToProcess}`;
           

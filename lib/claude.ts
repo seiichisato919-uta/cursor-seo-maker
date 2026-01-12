@@ -42,12 +42,22 @@ export function getClaudeClient() {
   return anthropic;
 }
 
-export async function callClaude(prompt: string, model: string = 'claude-sonnet-4-5-20250929') {
+export async function callClaude(prompt: string, model: string = 'claude-sonnet-4-5-20250929', maxTokens: number = 8192) {
   try {
     const client = getClaudeClient();
+    
+    // プロンプトの長さをログに記録
+    const promptLength = prompt.length;
+    console.log(`[Claude] Prompt length: ${promptLength} characters`);
+    
+    // プロンプトが長すぎる場合は警告
+    if (promptLength > 200000) {
+      console.warn(`[Claude] Warning: Prompt is very long (${promptLength} chars). This may cause timeout or truncation.`);
+    }
+    
     const message = await client.messages.create({
       model,
-      max_tokens: 4096,
+      max_tokens: maxTokens, // デフォルト8192（長い記事に対応）
       messages: [
         {
           role: 'user',

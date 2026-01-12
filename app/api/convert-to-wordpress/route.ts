@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { callClaude } from '@/lib/claude';
 import { getWordPressPrompt } from '@/lib/prompts';
 
+// Vercelの関数タイムアウト設定
+export const maxDuration = 60;
+
 // HTMLコードだけを抽出する関数
 function extractHtmlCode(responseText: string): string {
   // HTMLコードブロック（```html ... ```）を抽出
@@ -87,10 +90,26 @@ export async function POST(request: NextRequest) {
       );
     }
     
+    // コンテンツの長さをログに記録
+    const contentLength = content.length;
+    console.log(`[Convert to WordPress] Content length: ${contentLength} characters`);
+    
     // プロンプトを取得
     const basePrompt = getWordPressPrompt({
       article: content,
     });
+    
+    // プロンプトの長さをログに記録
+    const promptLength = basePrompt.length;
+    console.log(`[Convert to WordPress] Prompt length: ${promptLength} characters`);
+    
+    // 長いコンテンツの場合は、max_tokensを増やす
+    // コンテンツが長いほど、出力されるHTMLも長くなるため
+    let maxTokens = 8192; // デフォルト8192
+    if (contentLength > 10000) {
+      maxTokens = 16384; // 長いコンテンツの場合は16384に増やす
+      console.log(`[Convert to WordPress] Using increased max_tokens: ${maxTokens} for long content`);
+    }
     
     // プロンプトに「HTMLコードだけを出力する」という指示を追加
     const fullPrompt = `${basePrompt}
@@ -107,7 +126,15 @@ export async function POST(request: NextRequest) {
 - **提供されたコンテンツの全てをHTMLに変換してください（途中で切れないようにしてください）**`;
     
     // WordPress HTML変換はClaudeを使用
-    const rawHtml = await callClaude(fullPrompt, 'claude-sonnet-4-5-20250929');
+    const rawHtml = await callClaude(fullPrompt, 'claude-sonnet-4-5-20250929', maxTokens);
+    
+    // レスポンスの長さをログに記録
+    console.log(`[Convert to WordPress] Response length: ${rawHtml.length} characters`);
+    
+    // レスポンスが短すぎる場合は警告（途中で切れている可能性）
+    if (rawHtml.length < contentLength * 0.5) {
+      console.warn(`[Convert to WordPress] Warning: Response is shorter than expected. Content: ${contentLength} chars, Response: ${rawHtml.length} chars`);
+    }
     
     // HTMLコードだけを抽出
     const extractedHtml = extractHtmlCode(rawHtml);
