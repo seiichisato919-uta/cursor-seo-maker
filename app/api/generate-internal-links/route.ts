@@ -207,6 +207,9 @@ export async function POST(request: NextRequest) {
             continue;
           }
           
+          // 既存の内容を取得（デバッグログ用）
+          const originalContent = block.writtenContent.trim();
+          
           // デバッグ：Gemini APIの生レスポンスを確認
           console.log(`[Internal Links] Block ${block.id} - ===== RAW GEMINI RESPONSE =====`);
           console.log(`[Internal Links] Block ${block.id} - Full response length: ${result.length}`);
@@ -239,7 +242,7 @@ export async function POST(request: NextRequest) {
           console.log(`[Internal Links] Block ${block.id} - Contains "参考記事:": ${cleanedResult.includes('参考記事:')}`);
           
           // 既存の内容が含まれているか確認（開始部分と終了部分の両方を確認）
-          const originalContent = block.writtenContent.trim();
+          // originalContentは上で既に定義済み
           const originalContentStart = originalContent.substring(0, 100);
           
           // コンテンツが切り詰められている場合は、処理された部分の最後の100文字で確認
