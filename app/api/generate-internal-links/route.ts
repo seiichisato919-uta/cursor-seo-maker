@@ -174,6 +174,12 @@ export async function POST(request: NextRequest) {
           const hasArticleList = fullPrompt.includes('記事一覧') || fullPrompt.includes('Webライター');
           console.log(`[Internal Links] Block ${block.id} - Prompt contains article list: ${hasArticleList}`);
           
+          // 記事一覧が空の場合は警告
+          if (!spreadsheetData || spreadsheetData.length === 0) {
+            console.error(`[Internal Links] Block ${block.id} - ERROR: No article list available! Cannot generate internal links.`);
+            console.error(`[Internal Links] Block ${block.id} - This is likely why Gemini API is not generating internal links.`);
+          }
+          
           let result;
           try {
             // タイムアウトを55秒に設定（Vercelの60秒制限を考慮）
