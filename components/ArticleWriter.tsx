@@ -1077,8 +1077,14 @@ export default function ArticleWriter({ articleData, onSaveArticle }: ArticleWri
         alert('セールス箇所の提案が生成されませんでした');
       }
     } catch (error: any) {
-      console.error('Error generating sales locations:', error);
-      alert(error.message || 'セールス箇所の生成に失敗しました');
+      console.error('[Sales Locations] Error generating sales locations:', error);
+      console.error('[Sales Locations] Error details:', {
+        message: error.message,
+        stack: error.stack,
+        name: error.name,
+      });
+      const errorMessage = error.message || 'セールス箇所の生成に失敗しました';
+      alert(`エラー: ${errorMessage}\n\nブラウザのコンソール（F12）で詳細を確認してください。`);
     } finally {
       setSalesLocationLoading(false);
     }
@@ -1551,8 +1557,14 @@ export default function ArticleWriter({ articleData, onSaveArticle }: ArticleWri
         alert('監修者の吹き出しが生成されませんでした');
       }
     } catch (error: any) {
-      console.error('Error generating supervisor comments:', error);
-      alert(error.message || '監修者の吹き出しの生成に失敗しました');
+      console.error('[Supervisor Comments] Error generating supervisor comments:', error);
+      console.error('[Supervisor Comments] Error details:', {
+        message: error.message,
+        stack: error.stack,
+        name: error.name,
+      });
+      const errorMessage = error.message || '監修者の吹き出しの生成に失敗しました';
+      alert(`エラー: ${errorMessage}\n\nブラウザのコンソール（F12）で詳細を確認してください。`);
     } finally {
       setSupervisorCommentLoading(false);
     }
