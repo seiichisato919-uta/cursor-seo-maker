@@ -447,10 +447,24 @@ export async function POST(request: NextRequest) {
         }
       });
       
+      // デバッグ情報をフロントエンドに返す
+      const debugInfo: any = {};
+      Object.keys(results).forEach(blockId => {
+        const content = results[blockId];
+        const originalContent = data.h2Blocks.find((b: any) => b.id === blockId)?.writtenContent || '';
+        debugInfo[blockId] = {
+          hasInternalLink: content.includes('参考記事：') || content.includes('参考記事:'),
+          contentChanged: content !== originalContent,
+          contentLength: content.length,
+          originalLength: originalContent.length,
+        };
+      });
+      
       return NextResponse.json({ 
         h2BlocksWithLinks: results,
         articleCount: spreadsheetData.length,
-        source: data.spreadsheetData ? 'manual' : 'google-sheets'
+        source: data.spreadsheetData ? 'manual' : 'google-sheets',
+        debugInfo: debugInfo
       });
     }
     

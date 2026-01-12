@@ -893,6 +893,11 @@ export default function ArticleWriter({ articleData, onSaveArticle }: ArticleWri
         hasH2BlocksWithLinks: !!data.h2BlocksWithLinks,
       });
       
+      // API側のログ情報をフロントエンドでも確認できるように
+      if (data.debugInfo) {
+        console.log(`[Internal Links] API Debug Info:`, data.debugInfo);
+      }
+      
       if (!response.ok) {
         throw new Error(data.error || `内部リンクの生成に失敗しました（ステータス: ${response.status}）`);
       }
