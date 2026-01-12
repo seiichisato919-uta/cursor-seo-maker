@@ -207,6 +207,15 @@ export async function POST(request: NextRequest) {
             continue;
           }
           
+          // デバッグ：Gemini APIの生レスポンスを確認
+          console.log(`[Internal Links] Block ${block.id} - ===== RAW GEMINI RESPONSE =====`);
+          console.log(`[Internal Links] Block ${block.id} - Full response length: ${result.length}`);
+          console.log(`[Internal Links] Block ${block.id} - Full response (first 3000 chars):`, result.substring(0, 3000));
+          console.log(`[Internal Links] Block ${block.id} - Full response (last 3000 chars):`, result.substring(Math.max(0, result.length - 3000)));
+          console.log(`[Internal Links] Block ${block.id} - Contains "参考記事：": ${result.includes('参考記事：')}`);
+          console.log(`[Internal Links] Block ${block.id} - Contains "参考記事:": ${result.includes('参考記事:')}`);
+          console.log(`[Internal Links] Block ${block.id} - Contains original content start: ${result.includes(originalContent.substring(0, 50))}`);
+          
           // 不要な分析結果やメッセージを削除
           let cleanedResult = result;
           
@@ -223,6 +232,11 @@ export async function POST(request: NextRequest) {
           
           // 「---」などの区切り線を削除
           cleanedResult = cleanedResult.replace(/^---+$/gm, '');
+          
+          console.log(`[Internal Links] Block ${block.id} - ===== AFTER CLEANING =====`);
+          console.log(`[Internal Links] Block ${block.id} - Cleaned length: ${cleanedResult.length}`);
+          console.log(`[Internal Links] Block ${block.id} - Contains "参考記事：": ${cleanedResult.includes('参考記事：')}`);
+          console.log(`[Internal Links] Block ${block.id} - Contains "参考記事:": ${cleanedResult.includes('参考記事:')}`);
           
           // 既存の内容が含まれているか確認（開始部分と終了部分の両方を確認）
           const originalContent = block.writtenContent.trim();
