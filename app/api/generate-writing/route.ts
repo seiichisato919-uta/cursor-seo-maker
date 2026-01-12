@@ -195,6 +195,18 @@ ${data.structure ? `記事構成（参考・該当H2ブロックの前後のみ�
 
     const finalPrompt = promptWithData + filePromptSection;
     
+    // プロンプトの長さをログに出力（デバッグ用）
+    console.log(`[Writing] Prompt length: ${finalPrompt.length} characters`);
+    console.log(`[Writing] H2 Block: ${data.h2Block}`);
+    console.log(`[Writing] H3 count: ${data.h3s?.length || 0}`);
+    console.log(`[Writing] Has attached files: ${data.attachedFiles?.length > 0 ? 'Yes' : 'No'}`);
+    
+    // プロンプトが長すぎる場合の警告（目安：100,000文字以上）
+    if (finalPrompt.length > 100000) {
+      console.warn(`[Writing] Warning: Prompt is very long (${finalPrompt.length} chars). This may cause timeout.`);
+      console.warn(`[Writing] Consider splitting the H2 block or reducing attached files.`);
+    }
+    
     // Gemini API呼び出し（タイムアウトを55秒に設定）
     let content;
     try {
