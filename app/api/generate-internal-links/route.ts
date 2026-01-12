@@ -135,13 +135,19 @@ export async function POST(request: NextRequest) {
       
       try {
         for (const block of limitedBlocks) {
-          // 記事内容が長すぎる場合は先頭5000文字に制限（タイムアウト対策、ただし長い記事にも対応）
-          // H3が16個ある場合など、長い記事でも処理できるように5000文字に拡張
-          const contentToProcess = block.writtenContent && block.writtenContent.length > 5000 
-            ? block.writtenContent.substring(0, 5000) + '\n\n（...以下省略）'
+          // 記事内容が長すぎる場合は先頭8000文字に制限（タイムアウト対策、ただし長い記事にも対応）
+          // H3が16個ある場合など、長い記事でも処理できるように8000文字に拡張
+          const originalContentLength = block.writtenContent?.length || 0;
+          const maxContentLength = 8000;
+          const isTruncated = originalContentLength > maxContentLength;
+          const contentToProcess = isTruncated
+            ? block.writtenContent.substring(0, maxContentLength) + '\n\n（...以下省略）'
             : block.writtenContent || '';
           
-          console.log(`[Internal Links] Block ${block.id} - Content length: ${block.writtenContent?.length || 0}, Processing: ${contentToProcess.length}`);
+          // 処理された部分の最後の100文字を保存（既存内容の確認用）
+          const processedContentEnd = contentToProcess.substring(Math.max(0, contentToProcess.length - 100));
+          
+          console.log(`[Internal Links] Block ${block.id} - Content length: ${originalContentLength}, Processing: ${contentToProcess.length}, Truncated: ${isTruncated}`);
           
           const blockArticle = `## ${block.h2Title}\n${block.h3s?.map((h3: any) => `### ${h3.title}`).join('\n') || ''}\n\n${contentToProcess}`;
           
@@ -221,7 +227,13 @@ export async function POST(request: NextRequest) {
           // 既存の内容が含まれているか確認（開始部分と終了部分の両方を確認）
           const originalContent = block.writtenContent.trim();
           const originalContentStart = originalContent.substring(0, 100);
-          const originalContentEnd = originalContent.substring(Math.max(0, originalContent.length - 100));
+          
+          // コンテンツが切り詰められている場合は、処理された部分の最後の100文字で確認
+          // そうでない場合は、元のコンテンツ全体の最後の100文字で確認
+          const originalContentEnd = isTruncated 
+            ? processedContentEnd 
+            : originalContent.substring(Math.max(0, originalContent.length - 100));
+          
           const hasOriginalContentStart = cleanedResult.includes(originalContentStart);
           const hasOriginalContentEnd = cleanedResult.includes(originalContentEnd);
           
@@ -314,12 +326,14 @@ export async function POST(request: NextRequest) {
             }
             
             // 既存の内容の開始位置と終了位置を特定して、その範囲内の内容を保持
-            const originalEndIndex = cleanedResult.lastIndexOf(originalContentEnd);
+            // コンテンツが切り詰められている場合は、処理された部分の最後の100文字で確認
+            const endContentToCheck = isTruncated ? processedContentEnd : originalContentEnd;
+            const originalEndIndex = cleanedResult.lastIndexOf(endContentToCheck);
             
             // 既存の内容の範囲が正しく特定できているか確認
             if (originalStartIndex >= 0 && originalEndIndex >= originalStartIndex) {
               // 既存の内容の範囲内の部分を抽出
-              const extractedContent = cleanedResult.substring(originalStartIndex, originalEndIndex + originalContentEnd.length);
+              const extractedContent = cleanedResult.substring(originalStartIndex, originalEndIndex + endContentToCheck.length);
               
               // 既存の内容の長さと抽出した内容の長さを比較
               const extractedLength = extractedContent.length;
