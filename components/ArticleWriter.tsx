@@ -844,6 +844,13 @@ export default function ArticleWriter({ articleData, onSaveArticle }: ArticleWri
   // 特定のH2ブロックに対して内部リンクを提案してもらう
   const handleGenerateInternalLinksForBlock = useCallback(async (blockId: string) => {
     const block = h2Blocks.find(b => b.id === blockId);
+    console.log(`[Internal Links] Button clicked for block ${blockId}`, {
+      blockFound: !!block,
+      hasContent: !!(block?.writtenContent),
+      contentLength: block?.writtenContent?.length || 0,
+      contentPreview: block?.writtenContent?.substring(0, 100) || 'N/A',
+    });
+    
     if (!block || !block.writtenContent || block.writtenContent.trim().length === 0) {
       alert('執筆内容がありません。まず記事を執筆してください。');
       return;
@@ -1080,6 +1087,13 @@ export default function ArticleWriter({ articleData, onSaveArticle }: ArticleWri
   // 特定のH2ブロックに対してセールス箇所を提案してもらう
   const handleGenerateSalesLocationsForBlock = useCallback(async (blockId: string) => {
     const block = h2Blocks.find(b => b.id === blockId);
+    console.log(`[Sales Locations] Button clicked for block ${blockId}`, {
+      blockFound: !!block,
+      hasContent: !!(block?.writtenContent),
+      contentLength: block?.writtenContent?.length || 0,
+      contentPreview: block?.writtenContent?.substring(0, 100) || 'N/A',
+    });
+    
     if (!block || !block.writtenContent || block.writtenContent.trim().length === 0) {
       alert('執筆内容がありません。まず記事を執筆してください。');
       return;
@@ -1435,6 +1449,13 @@ export default function ArticleWriter({ articleData, onSaveArticle }: ArticleWri
   // 特定のH2ブロックに対して監修者の吹き出しを執筆する
   const handleGenerateSupervisorCommentsForBlock = useCallback(async (blockId: string) => {
     const block = h2Blocks.find(b => b.id === blockId);
+    console.log(`[Supervisor Comments] Button clicked for block ${blockId}`, {
+      blockFound: !!block,
+      hasContent: !!(block?.writtenContent),
+      contentLength: block?.writtenContent?.length || 0,
+      contentPreview: block?.writtenContent?.substring(0, 100) || 'N/A',
+    });
+    
     if (!block || !block.writtenContent || block.writtenContent.trim().length === 0) {
       alert('執筆内容がありません。まず記事を執筆してください。');
       return;
