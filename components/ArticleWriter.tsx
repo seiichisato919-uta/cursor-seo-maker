@@ -903,6 +903,23 @@ export default function ArticleWriter({ articleData, onSaveArticle }: ArticleWri
 
       if (data.h2BlocksWithLinks && data.h2BlocksWithLinks[blockId]) {
         const updatedContent = data.h2BlocksWithLinks[blockId];
+        const originalContent = block.writtenContent || '';
+        
+        // デバッグログ：APIレスポンスの内容を確認
+        console.log(`[Internal Links] Block ${blockId} - Original content length: ${originalContent.length}`);
+        console.log(`[Internal Links] Block ${blockId} - Updated content length: ${updatedContent.length}`);
+        console.log(`[Internal Links] Block ${blockId} - Updated content preview (first 500 chars):`, updatedContent.substring(0, 500));
+        console.log(`[Internal Links] Block ${blockId} - Updated content contains "参考記事：": ${updatedContent.includes('参考記事：')}`);
+        console.log(`[Internal Links] Block ${blockId} - Updated content contains "参考記事:": ${updatedContent.includes('参考記事:')}`);
+        console.log(`[Internal Links] Block ${blockId} - Content changed: ${updatedContent !== originalContent}`);
+        
+        // 内部リンクが含まれているか確認
+        const hasInternalLink = updatedContent.includes('参考記事：') || updatedContent.includes('参考記事:');
+        if (!hasInternalLink) {
+          console.warn(`[Internal Links] Block ${blockId} - WARNING: API returned content but no internal links found!`);
+          console.warn(`[Internal Links] Block ${blockId} - This might mean Gemini API did not generate internal links.`);
+        }
+        
         console.log(`[Internal Links] Updating block ${blockId} with new content`);
         
         setH2Blocks(prevBlocks => {

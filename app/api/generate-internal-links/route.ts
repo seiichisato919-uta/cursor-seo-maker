@@ -384,10 +384,25 @@ export async function POST(request: NextRequest) {
       console.log(`[Internal Links] Returning results for ${Object.keys(results).length} blocks`);
       Object.keys(results).forEach(blockId => {
         const content = results[blockId];
+        const originalContent = data.h2Blocks.find((b: any) => b.id === blockId)?.writtenContent || '';
         const hasInternalLink = content.includes('参考記事：') || content.includes('参考記事:');
+        const contentChanged = content !== originalContent;
+        
         console.log(`[Internal Links] Block ${blockId} - Final result has internal link: ${hasInternalLink}`);
         console.log(`[Internal Links] Block ${blockId} - Final result length: ${content.length}`);
-        console.log(`[Internal Links] Block ${blockId} - Final result preview (first 500 chars):`, content.substring(0, 500));
+        console.log(`[Internal Links] Block ${blockId} - Original content length: ${originalContent.length}`);
+        console.log(`[Internal Links] Block ${blockId} - Content changed: ${contentChanged}`);
+        console.log(`[Internal Links] Block ${blockId} - Final result preview (first 1000 chars):`, content.substring(0, 1000));
+        
+        if (!hasInternalLink && contentChanged) {
+          console.warn(`[Internal Links] Block ${blockId} - WARNING: Content changed but no internal links found!`);
+          console.warn(`[Internal Links] Block ${blockId} - This might indicate Gemini API did not follow instructions.`);
+        }
+        
+        if (!hasInternalLink && !contentChanged) {
+          console.warn(`[Internal Links] Block ${blockId} - WARNING: Content unchanged and no internal links found!`);
+          console.warn(`[Internal Links] Block ${blockId} - This might indicate Gemini API did not generate internal links.`);
+        }
       });
       
       return NextResponse.json({ 
